@@ -1,0 +1,44 @@
+name: .NET
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Git version tag
+      id: version
+      run: |
+        echo "::set-output name=tag::`echo $(git describe --tags --abbrev=0)`"
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v2
+      with:
+        dotnet-version: 5.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build
+      run: dotnet build ./src/FirstInCloud.Packages.sln --configuration Release
+      
+    - name: Test
+      run: dotnet test ./src/FirstInCloud.Packages.sln --configuration Release --no-build --verbosity normal --filter Category!=Integration
+      
+    - name: Pack
+      run: dotnet pack ./src/FirstInCloud.Packages.sln --configuration Release -p:PackageVersion=${{ steps.version.outputs.tag }} -p:RepositoryUrl=https://github.com/${{ github.repository }}
+      
+    - name: Push
+      run: |
+        dotnet nuget add source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json --name github --username ${{ github.repository_owner }} --password ${{ secrets.NUGET_TOKEN }} --store-password-in-clear-text
+        dotnet nuget push **/bin/Release/*.nupkg --source github --skip-duplicate
