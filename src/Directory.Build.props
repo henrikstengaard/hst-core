@@ -5,4 +5,7 @@
   <PropertyGroup>
     <Authors>Henrik Nørfjand Stengaard</Authors>
   </PropertyGroup>
+  <PropertyGroup>
+    <PackageVersion>0.1.0</PackageVersion>
+  </PropertyGroup>
 </Project>
