@@ -24,10 +24,9 @@ jobs:
 
     - name: Update package version
       shell: pwsh
-      working-directory: ./src
       run: |
         $commitCount = git rev-list --count $env:GITHUB_REF
-        $packageVersion = (Select-Xml -Path .\src\Directory.Build.props -XPath '/Project/PropertyGroup/PackageVersion').Node.InnerXML
+        $packageVersion = (Select-Xml -Path ./src/Directory.Build.props -XPath '/Project/PropertyGroup/PackageVersion').Node.InnerXML
         "PACKAGE_VERSION={0}" -f ($packageVersion -replace '^(.*)\.\d+.*$', "`$1.$commitCount") >> $env:GITHUB_ENV
 
     - name: Restore dependencies
