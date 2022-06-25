@@ -1,10 +1,6 @@
 name: .NET
 
-on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+on: [workflow_dispatch]
 
 jobs:
   build:
@@ -16,13 +12,18 @@ jobs:
       with:
         fetch-depth: 0
 
+    - name: Git version tag
+      id: version
+      run: |
+        echo "::set-output name=tag::`echo $(git describe --tags --abbrev=0)`"
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v2
       with:
         dotnet-version: 5.0.x
 
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore ./src/Hst.Core.sln
       
     - name: Build
       run: dotnet build ./src/Hst.Core.sln --configuration Release
@@ -35,5 +36,5 @@ jobs:
       
     - name: Push
       run: |
-        dotnet nuget add source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json --name github --username ${{ github.repository_owner }} --password ${{ secrets.NUGET_TOKEN }} --store-password-in-clear-text
+        dotnet nuget add source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json --name github --username ${{ github.repository_owner }} --password ${{ github.token }} --store-password-in-clear-text
         dotnet nuget push **/bin/Release/*.nupkg --source github --skip-duplicate
