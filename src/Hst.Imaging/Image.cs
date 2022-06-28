@@ -15,17 +15,29 @@
 
         private readonly int maxColors;
         private readonly IList<Color> palette;
-        public IReadOnlyList<Color> Palette;
-        public byte[] Data;
+        public readonly IReadOnlyList<Color> Palette;
+        public readonly byte[] PixelData;
 
         public Image(int width, int height, int bitsPerPixel, IEnumerable<Color> palette,
-            IEnumerable<byte> data) : this(width, height, bitsPerPixel)
+            IEnumerable<byte> pixelData) : this(width, height, bitsPerPixel)
         {
             if (palette == null) throw new ArgumentNullException(nameof(palette));
             
             this.palette = palette.ToList();
+
+            if (bitsPerPixel <= 8 && this.palette.Count > this.maxColors)
+            {
+                throw new ArgumentOutOfRangeException($"Bits per pixel {BitsPerPixel} can only have maximum {maxColors} colors");
+            }
+            
             Palette = new ReadOnlyCollection<Color>(this.palette);
-            Data = data.ToArray();
+            PixelData = pixelData.ToArray();
+            
+            var pixelDataSize = width * height * ((bitsPerPixel <= 8 ? 8 : bitsPerPixel) / 8);
+            if (PixelData.Length != pixelDataSize)
+            {
+                throw new ArgumentOutOfRangeException($"Image with dimension {width} x {height} and {BitsPerPixel} bits per pixel must have pixel data size of {pixelDataSize} bytes");
+            }
         }
 
         public Image(int width, int height, int bitsPerPixel)
@@ -40,14 +52,32 @@
             BitsPerPixel = bitsPerPixel;
             Scanline = bitsPerPixel <= 8 ? width : width * bitsPerPixel / 8;
 
-            this.maxColors = bitsPerPixel <= 8 ? Convert.ToInt32(Math.Pow(2, bitsPerPixel) - 1) : 0;
+            this.maxColors = bitsPerPixel <= 8 ? Convert.ToInt32(Math.Pow(2, bitsPerPixel)) : 0;
             this.palette = new List<Color>();
             Palette = new ReadOnlyCollection<Color>(this.palette);
-            Data = new byte[Scanline * height];
+            PixelData = new byte[Scanline * height];
         }
 
+        /// <summary>
+        /// Add color to palette. Only supported for bits per pixels of 8 or less
+        /// </summary>
+        /// <param name="r"></param>
+        /// <param name="g"></param>
+        /// <param name="b"></param>
+        /// <param name="a"></param>
+        /// <exception cref="InvalidOperationException"></exception>
         public void AddColor(int r, int g, int b, int a = 255)
         {
+            if (BitsPerPixel > 8)
+            {
+                throw new InvalidOperationException("Only bits per pixel of 8 or less supports palette colors");
+            }
+
+            if (palette.Count >= maxColors)
+            {
+                throw new ArgumentOutOfRangeException($"Bits per pixel {BitsPerPixel} can only have maximum {maxColors} colors");
+            }
+            
             AddColor(new Color
             {
                 R = r,
@@ -72,7 +102,7 @@
             var offset = (Scanline * y) + x;
             if (BitsPerPixel == 8)
             {
-                var paletteColor = Data[offset];
+                var paletteColor = PixelData[offset];
                 var color = Palette[paletteColor];
                 return new Pixel
                 {
@@ -88,10 +118,10 @@
 
             return new Pixel
             {
-                R = Data[offset + 2],
-                G = Data[offset + 1],
-                B = Data[offset],
-                A = BitsPerPixel == 32 ? Data[offset + 3] : 0,
+                R = PixelData[offset + 2],
+                G = PixelData[offset + 1],
+                B = PixelData[offset],
+                A = BitsPerPixel == 32 ? PixelData[offset + 3] : 0,
                 PaletteColor = 0
             };
         }
@@ -104,7 +134,7 @@
             }
 
             var pixelOffset = (Scanline * y) + x;
-            Data[pixelOffset] = (byte)paletteColor;
+            PixelData[pixelOffset] = (byte)paletteColor;
         }
 
         public void SetPixel(int x, int y, int r, int g, int b, int a = 255)
@@ -122,16 +152,16 @@
         {
             var pixelOffset = Scanline * y + x * (BitsPerPixel / 8);
 
-            Data[pixelOffset] = (byte)pixel.R;
-            Data[pixelOffset + 1] = (byte)pixel.G;
-            Data[pixelOffset + 2] = (byte)pixel.B;
+            PixelData[pixelOffset] = (byte)pixel.R;
+            PixelData[pixelOffset + 1] = (byte)pixel.G;
+            PixelData[pixelOffset + 2] = (byte)pixel.B;
 
             if (BitsPerPixel <= 24)
             {
                 return;
             }
 
-            Data[pixelOffset + 3] = (byte)pixel.A;
+            PixelData[pixelOffset + 3] = (byte)pixel.A;
         }
     }
 }

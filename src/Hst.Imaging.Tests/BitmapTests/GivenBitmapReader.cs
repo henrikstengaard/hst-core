@@ -48,7 +48,7 @@
             }
             
             // assert - image data matches expected image data
-            Assert.Equal(expectedImage.Data, image.Data);
+            Assert.Equal(expectedImage.PixelData, image.PixelData);
         }
         
         [Fact]
@@ -69,7 +69,7 @@
             Assert.Equal(0, image.Palette.Count);
             
             // assert - image data matches expected image data
-            Assert.Equal(expectedImage.Data, image.Data);
+            Assert.Equal(expectedImage.PixelData, image.PixelData);
         }
         
         [Fact]
@@ -92,7 +92,7 @@
             Assert.Equal(0, image.Palette.Count);
             
             // assert - image data matches expected image data
-            Assert.Equal(expectedImage.Data, image.Data);
+            Assert.Equal(expectedImage.PixelData, image.PixelData);
         }
     }
 }

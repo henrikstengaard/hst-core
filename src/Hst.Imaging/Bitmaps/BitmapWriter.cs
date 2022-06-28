@@ -87,19 +87,19 @@
 
                     if (image.BitsPerPixel == 8)
                     {
-                        bitmapScanLineData[bitmapPixelOffset] = image.Data[imagePixelOffset];
+                        bitmapScanLineData[bitmapPixelOffset] = image.PixelData[imagePixelOffset];
                     }
 
                     if (image.BitsPerPixel >= 24)
                     {
-                        bitmapScanLineData[bitmapPixelOffset + 2] = image.Data[imagePixelOffset + 0]; // red
-                        bitmapScanLineData[bitmapPixelOffset + 1] = image.Data[imagePixelOffset + 1]; // green
-                        bitmapScanLineData[bitmapPixelOffset] = image.Data[imagePixelOffset + 2]; // blue
+                        bitmapScanLineData[bitmapPixelOffset + 2] = image.PixelData[imagePixelOffset + 0]; // red
+                        bitmapScanLineData[bitmapPixelOffset + 1] = image.PixelData[imagePixelOffset + 1]; // green
+                        bitmapScanLineData[bitmapPixelOffset] = image.PixelData[imagePixelOffset + 2]; // blue
                     }
                     
                     if (image.BitsPerPixel == 32)
                     {
-                        bitmapScanLineData[bitmapPixelOffset + 3] = image.Data[imagePixelOffset + 3]; // alpha
+                        bitmapScanLineData[bitmapPixelOffset + 3] = image.PixelData[imagePixelOffset + 3]; // alpha
                     }
 
                     imagePixelOffset += bytesPerPixel;
