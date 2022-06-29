@@ -8,6 +8,22 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hst.Imaging", "Hst.Imaging\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hst.Imaging.Tests", "Hst.Imaging.Tests\Hst.Imaging.Tests.csproj", "{73225A38-02FC-4F76-A5FA-B70D01421E46}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GithubWorkflows", "GithubWorkflows", "{05CA85B6-4A53-44BB-B84A-06FA4AA7790F}"
+	ProjectSection(SolutionItems) = preProject
+		..\.github\workflows\dotnet.yml = ..\.github\workflows\dotnet.yml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Properties", "Properties", "{A2365F37-2DF7-4475-A651-1859726F778A}"
+	ProjectSection(SolutionItems) = preProject
+		Directory.Build.props = Directory.Build.props
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Info", "Info", "{2EA5B2DD-1FFC-432C-8916-061110B51FFA}"
+	ProjectSection(SolutionItems) = preProject
+		..\license.txt = ..\license.txt
+		..\readme.md = ..\readme.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

@@ -4,8 +4,22 @@
   </PropertyGroup>
   <PropertyGroup>
     <Authors>Henrik Nørfjand Stengaard</Authors>
+    <Copyright>Copyright © 2022</Copyright>
+    <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
+    <PackageIconUrl />
+    <RepositoryUrl>$(RepositoryUrl)</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
   </PropertyGroup>
   <PropertyGroup>
+    <Version>0.1.0</Version>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <FileVersion>0.1.0.0</FileVersion>
     <PackageVersion>0.1.0</PackageVersion>
+  </PropertyGroup>
+  <PropertyGroup>
+    <!-- https://github.com/dotnet/sourcelink/issues/244 -->
+    <DebugType>Portable</DebugType>
+    <EmbedAllSources>True</EmbedAllSources>
+    <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb;.xml</AllowedOutputExtensionsInPackageBuildOutputFolder>
   </PropertyGroup>
 </Project>
