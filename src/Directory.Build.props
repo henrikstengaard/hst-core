@@ -5,10 +5,12 @@
   <PropertyGroup>
     <Authors>Henrik Nørfjand Stengaard</Authors>
     <Copyright>Copyright © 2022</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>False</PackageRequireLicenseAcceptance>
     <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
-    <PackageIconUrl />
     <RepositoryUrl>$(RepositoryUrl)</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>readme.md</PackageReadmeFile>
   </PropertyGroup>
   <PropertyGroup>
     <Version>0.1.0</Version>

@@ -1,11 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
     <PropertyGroup>
-        <TargetFramework>net5.0</TargetFramework>
+        <Description>Hst Imaging is a library for creating and manipulating images with basic support for reading and writing image file formats.</Description>
+        <PackageTags>HST;Imaging</PackageTags>
     </PropertyGroup>
 
     <ItemGroup>
       <Folder Include="Bitmaps" />
     </ItemGroup>
 
+    <ItemGroup>
+        <None Include="..\..\readme.md" Pack="true" PackagePath="\"/>
+        <None Include="..\..\license.txt" Pack="true" PackagePath="\"/>
+    </ItemGroup>
 </Project>
