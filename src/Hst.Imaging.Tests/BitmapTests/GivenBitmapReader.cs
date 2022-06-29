@@ -32,7 +32,7 @@
             expectedImage.SetPixel(1, 1, 1); // pixel 1,1 red
             
             // act - read image from bitmap
-            await using var stream = File.OpenRead(@"TestData\Bitmaps\8bpp.bmp");
+            await using var stream = File.OpenRead(Path.Combine("TestData", "Bitmaps", "8bpp.bmp"));
             var image = BitmapReader.Read(stream);
             
             // assert - 8 bits per pixel image has 256 colors
@@ -62,7 +62,7 @@
             expectedImage.SetPixel(1, 1, 255, 0, 0); // pixel 1,1 red
 
             // act - read image from bitmap
-            await using var stream = File.OpenRead(@"TestData\Bitmaps\24bpp.bmp");
+            await using var stream = File.OpenRead(Path.Combine("TestData", "Bitmaps", "24bpp.bmp"));
             var image = BitmapReader.Read(stream);
             
             // assert - 24 bits per pixel image doesn't have any palette colors
@@ -85,7 +85,7 @@
             expectedImage.SetPixel(1, 1, 255, 0, 0, 255); // pixel 1,1 red
 
             // act - read image from bitmap
-            await using var stream = File.OpenRead(@"TestData\Bitmaps\32bpp.bmp");
+            await using var stream = File.OpenRead(Path.Combine("TestData", "Bitmaps", "32bpp.bmp"));
             var image = BitmapReader.Read(stream);
             
             // assert - 32 bits per pixel image doesn't have any palette colors
