@@ -25,9 +25,11 @@ namespace Hst.Core
             if (IsWindows())
             {
 #pragma warning disable CA1416
-                using var identity = WindowsIdentity.GetCurrent();
-                var principal = new WindowsPrincipal(identity);
-                return principal.IsInRole(WindowsBuiltInRole.Administrator);
+                using (var identity = WindowsIdentity.GetCurrent())
+                {
+                    var principal = new WindowsPrincipal(identity);
+                    return principal.IsInRole(WindowsBuiltInRole.Administrator);
+                }
 #pragma warning restore CA1416
             }
 
