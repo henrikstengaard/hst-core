@@ -19,10 +19,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="ConverterTests" />
-    </ItemGroup>
-
-    <ItemGroup>
       <ProjectReference Include="..\Hst.Core\Hst.Core.csproj" />
     </ItemGroup>
 

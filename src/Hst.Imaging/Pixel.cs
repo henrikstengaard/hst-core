@@ -1,4 +1,4 @@
-﻿namespace HstWbInstaller.Core.IO.Images.Bitmap
+﻿namespace Hst.Imaging
 {
     public class Pixel
     {
