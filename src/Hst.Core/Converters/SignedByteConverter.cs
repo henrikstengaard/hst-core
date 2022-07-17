@@ -2,15 +2,24 @@
 {
     public static class SignedByteConverter
     {
-        public static int ConvertByteToSignedByte(byte[] bytes, int offset = 0)
+        public static sbyte ConvertByteToSignedByte(byte value)
         {
-            var value = bytes[offset];
-            return value >= 128 ? value - 256 : value;
+            return (sbyte)(value >= 128 ? value - 256 : value);
+        }
+        
+        public static sbyte ConvertByteToSignedByte(byte[] bytes, int offset = 0)
+        {
+            return ConvertByteToSignedByte(bytes[offset]);
         }
 
-        public static void ConvertSignedByteToByte(byte[] bytes, int offset, int value)
+        public static byte ConvertSignedByteToByte(sbyte value)
         {
-            bytes[offset] = (byte)(value < 0 ? value + 256 : value);
+            return (byte)(value < 0 ? value + 256 : value);
+        }
+        
+        public static void ConvertSignedByteToByte(byte[] bytes, int offset, sbyte value)
+        {
+            bytes[offset] = ConvertSignedByteToByte(value);
         }
     }
 }
