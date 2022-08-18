@@ -80,6 +80,22 @@ image.SetPixel(1, 1, 255, 0, 0);
 
 Setting pixels to color instance or RGBA values are only supported for 24 and 32 bits per pixel images.
 
+Directly manipulate image with dimension 2 * 2, 8 bits per pixel image pixel data and set pixel at coordinate x = 2 and y = 2 to 2nd palette color:
+
+```
+var pixelOffset = (1 * 2 + 1) * 1; // y * width + x * 1 byte per pixel
+image.PixelData[pixelOffset] = 1; // 2nd palette color
+```
+
+Directly manipulate image with dimension 2 * 2, 24 bits per pixel image pixel data and set pixel at coordinate x = 2 and y = 2 to red color using RGB values:
+
+```
+var pixelOffset = (1 * 2 + 1) * 3; // y * width + x * 3 bytes per pixel
+image.PixelData[pixelOffset] = 255; // red channel
+image.PixelData[pixelOffset + 1] = 0; // green channel
+image.PixelData[pixelOffset + 2] = 0; // blue channel
+```
+
 ### Reading and writing png images
 
 Png reader and writer supports 2, 4, 8, 24 and 32 bits per pixel images.
