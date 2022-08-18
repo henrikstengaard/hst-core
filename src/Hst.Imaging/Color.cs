@@ -2,17 +2,19 @@ namespace Hst.Imaging
 {
     public class Color
     {
-        public int R { get; set; }
-        public int G { get; set; }
-        public int B { get; set; }
-        public int A { get; set; }
+        public readonly int R;
+        public readonly int G;
+        public readonly int B;
+        public readonly int A;
 
-        public Color()
+        public Color(int r, int g, int b, int a = 255)
         {
-            R = 0;
-            G = 0;
-            B = 0;
-            A = 255;
+            R = r;
+            G = g;
+            B = b;
+            A = a;
         }
+
+        public static Color Transparent => new Color(0, 0, 0, 0);
     }
 }

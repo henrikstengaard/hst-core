@@ -12,4 +12,8 @@
         <None Include="readme.md" Pack="true" PackagePath="\" />
         <None Include="..\..\license.txt" Pack="true" PackagePath="\" />
     </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Hjg.Pngcs" Version="1.1.4" />
+    </ItemGroup>
 </Project>

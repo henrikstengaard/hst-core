@@ -5,31 +5,13 @@
     using Bitmaps;
     using Xunit;
 
-    public class GivenBitmapWriter
+    public class GivenBitmapWriter : ImageTestBase
     {
         [Fact]
         public async Task WhenWriteImageWith8BitsPerPixelThenBytesMatchBitmapFileStructure()
         {
-            // arrange - create new bitmap image 
-            var image = new Image(2, 2, 8);
-            
-            // arrange - add palette colors
-            image.AddColor(new Color
-            {
-                R = 0,
-                G = 0,
-                B = 0
-            });
-            image.AddColor(new Color
-            {
-                R = 255,
-                G = 0,
-                B = 0
-            });
-
-            // arrange - set pixels
-            image.SetPixel(0, 0, 1); // pixel 0,0 red
-            image.SetPixel(1, 1, 1); // pixel 1,1 red
+            // arrange - create new image 
+            var image = Create8BppImage(false);
 
             // act - write image as bitmap to stream
             var bitmapStream = new MemoryStream();
@@ -139,15 +121,9 @@
         [Fact]
         public async Task WhenWriteImageWith24BitsPerPixelThenBytesMatchBitmapFileStructure()
         {
-            // arrange - create new bitmap image 
-            var image = new Image(2, 2, 24);
+            // arrange - create new image 
+            var image = Create24BppImage(false);
             
-            // arrange - set pixels
-            image.SetPixel(0, 0, 255, 0, 0); // red
-            image.SetPixel(1, 0, 0, 0, 0); // black
-            image.SetPixel(0, 1, 0, 0, 0); // black
-            image.SetPixel(1, 1, 255, 0, 0); // red
-
             // act - write image as bitmap to stream
             var bitmapStream = new MemoryStream();
             BitmapWriter.Write(bitmapStream, image);
@@ -239,15 +215,9 @@
         [Fact]
         public async Task WhenWriteImageWith32BitsPerPixelThenBytesMatchBitmapFileStructure()
         {
-            // arrange - create new bitmap image 
-            var image = new Image(2, 2, 32);
+            // arrange - create new image 
+            var image = Create32BppImage(true);
             
-            // arrange - set pixels
-            image.SetPixel(0, 0, 255, 0, 0); // red
-            image.SetPixel(1, 0, 0, 0, 0, 0); // transparent, alpha = 0
-            image.SetPixel(0, 1, 0, 0, 0, 0); // transparent, alpha = 0
-            image.SetPixel(1, 1, 255, 0, 0); // red
-
             // act - write image as bitmap to stream
             var bitmapStream = new MemoryStream();
             BitmapWriter.Write(bitmapStream, image);

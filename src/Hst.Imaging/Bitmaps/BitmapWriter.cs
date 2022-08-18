@@ -55,7 +55,7 @@
             if (image.BitsPerPixel <= 8)
             {
                 // write palette RGB color backwards BGR
-                foreach (var color in image.Palette)
+                foreach (var color in image.Palette.Colors)
                 {
                     binaryWriter.Write((byte)color.B); // blue
                     binaryWriter.Write((byte)color.G); // green
@@ -64,7 +64,7 @@
                 }
 
                 // write unused palette colors as zeros
-                for (var i = image.Palette.Count; i < totalColors; i++)
+                for (var i = image.Palette.Colors.Count; i < totalColors; i++)
                 {
                     binaryWriter.Write(new byte[4]);
                 }

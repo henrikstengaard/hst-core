@@ -50,7 +50,7 @@
             }
 
             // read palette
-            var palette = new List<Color>();
+            var colors = new List<Color>();
             if (bitsPerPixel <= 8)
             {
                 for (var i = 0; i < totalColors; i++)
@@ -59,14 +59,8 @@
                     var g = binaryReader.ReadByte();
                     var r = binaryReader.ReadByte();
                     binaryReader.ReadByte(); // reserved
-                    
-                    palette.Add(new Color
-                    {
-                        R = r,
-                        G = g,
-                        B = b,
-                        A = 255
-                    });
+
+                    colors.Add(new Color(r, b, g, 255));
                 }
             }
 
@@ -115,7 +109,7 @@
                 }
             }
             
-            return new Image(imageWidth, imageHeight, bitsPerPixel, palette, data);
+            return new Image(imageWidth, imageHeight, bitsPerPixel, false, Color.Transparent, new Palette(colors), data);
         }
     }
 }
