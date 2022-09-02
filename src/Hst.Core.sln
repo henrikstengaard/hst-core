@@ -24,6 +24,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Info", "Info", "{2EA5B2DD-1
 		..\readme.md = ..\readme.md
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hjg.Pngcs", "Hjg.Pngcs\Hjg.Pngcs.csproj", "{A51D7303-57B2-4971-AB7F-EB62B689C19B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -46,5 +48,9 @@ Global
 		{73225A38-02FC-4F76-A5FA-B70D01421E46}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{73225A38-02FC-4F76-A5FA-B70D01421E46}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{73225A38-02FC-4F76-A5FA-B70D01421E46}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A51D7303-57B2-4971-AB7F-EB62B689C19B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A51D7303-57B2-4971-AB7F-EB62B689C19B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A51D7303-57B2-4971-AB7F-EB62B689C19B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A51D7303-57B2-4971-AB7F-EB62B689C19B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

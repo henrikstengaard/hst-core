@@ -1,9 +1,7 @@
 ﻿namespace Hst.Imaging.Pngs
 {
-    using System;
     using System.Collections.Generic;
     using System.IO;
-    using System.Linq;
     using Hjg.Pngcs;
 
     public static class PngReader

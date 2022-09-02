@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>A small library to read/write huge PNG files in C#</Description>
+    <PackageTags>PNG</PackageTags>
+  </PropertyGroup>
+  <PropertyGroup>
+    <DefineConstants>NET45</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="readme.md" Pack="true" PackagePath="\" />
+    <None Include="..\license.txt" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>
