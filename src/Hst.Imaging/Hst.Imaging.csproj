@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <Description>Hst Imaging is a library for creating and manipulating images with basic support for reading and writing image file formats.</Description>
-        <PackageTags>HST;Imaging</PackageTags>
+        <PackageTags>Hst;Imaging;Png;Bitmap</PackageTags>
     </PropertyGroup>
 
     <ItemGroup>

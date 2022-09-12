@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <Description>Hst Core a library with common classes and extensions.</Description>
-        <PackageTags>HST;Core</PackageTags>
+        <PackageTags>Hst;Core</PackageTags>
     </PropertyGroup>
 
     <ItemGroup>
