@@ -41,7 +41,7 @@
         /// <returns></returns>
         public static long ToSectorSize(this long size)
         {
-            return size % 512 != 0 ? size + (512 - size % 512) : size;
+            return size % 512 != 0 ? size - (size % 512) : size;
         }
         
         /// <summary>
