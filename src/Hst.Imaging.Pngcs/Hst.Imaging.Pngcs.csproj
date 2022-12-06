@@ -9,6 +9,11 @@
     </ItemGroup>
 
     <ItemGroup>
+        <None Include="readme.md" Pack="true" PackagePath="\" />
+        <None Include="..\..\license.txt" Pack="true" PackagePath="\" />
+    </ItemGroup>
+
+    <ItemGroup>
       <ProjectReference Include="..\Hst.Imaging\Hst.Imaging.csproj" />
     </ItemGroup>
 </Project>
