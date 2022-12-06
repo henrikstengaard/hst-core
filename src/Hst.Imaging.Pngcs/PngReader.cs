@@ -1,4 +1,4 @@
-﻿namespace Hst.Imaging.Pngs
+﻿namespace Hst.Imaging.Pngcs
 {
     using System.Collections.Generic;
     using System.IO;

@@ -10,7 +10,7 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="readme.md" Pack="true" PackagePath="\" />
+    <Content Include="readme.txt" Pack="true" PackagePath="\" />
     <None Include="license.txt" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>

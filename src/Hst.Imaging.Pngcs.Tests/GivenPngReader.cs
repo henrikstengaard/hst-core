@@ -1,8 +1,8 @@
-﻿namespace Hst.Imaging.Tests.PngTests
+﻿namespace Hst.Imaging.Pngcs.Tests
 {
     using System.IO;
     using System.Threading.Tasks;
-    using Pngs;
+    using Imaging.Tests;
     using Xunit;
 
     public class GivenPngReader : ImageTestBase

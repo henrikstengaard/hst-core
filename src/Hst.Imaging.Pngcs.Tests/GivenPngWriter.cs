@@ -1,11 +1,12 @@
-﻿namespace Hst.Imaging.Tests.PngTests
+﻿namespace Hst.Imaging.Pngcs.Tests
 {
     using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
     using Hjg.Pngcs;
+    using Imaging.Tests;
     using Xunit;
-    using PngWriter = Pngs.PngWriter;
+    using PngWriter = Pngcs.PngWriter;
 
     public class GivenPngWriter : ImageTestBase
     {

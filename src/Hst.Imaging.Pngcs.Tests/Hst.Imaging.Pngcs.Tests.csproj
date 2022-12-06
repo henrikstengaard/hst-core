@@ -19,24 +19,26 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\Hst.Imaging.Pngcs\Hst.Imaging.Pngcs.csproj" />
+      <ProjectReference Include="..\Hst.Imaging.Tests\Hst.Imaging.Tests.csproj" />
       <ProjectReference Include="..\Hst.Imaging\Hst.Imaging.csproj" />
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="TestData\Bitmaps" />
+      <Folder Include="TestData" />
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="TestData\Bitmaps\24bpp.bmp">
+      <None Update="TestData\Pngs\24bpp.png">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
-      <None Update="TestData\Bitmaps\32bpp.bmp">
+      <None Update="TestData\Pngs\24bpp_alpha.png">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
-      <None Update="TestData\Bitmaps\8bpp.bmp">
+      <None Update="TestData\Pngs\4bpp.png">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
-      <None Update="TestData\Pngs\32bpp.png">
+      <None Update="TestData\Pngs\8bpp.png">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
     </ItemGroup>
