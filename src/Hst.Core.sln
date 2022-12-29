@@ -28,6 +28,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hst.Imaging.Pngcs", "Hst.Im
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hst.Imaging.Pngcs.Tests", "Hst.Imaging.Pngcs.Tests\Hst.Imaging.Pngcs.Tests.csproj", "{424E24A3-8C16-43F7-ACCD-4CFE6A4A0056}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hst.Compression", "Hst.Compression\Hst.Compression.csproj", "{925C82AB-B32F-4F66-A066-601B0EC8A2B2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hst.Compression.Tests", "Hst.Compression.Tests\Hst.Compression.Tests.csproj", "{57802AE1-2DC2-4232-B6D2-22CBFC332AE5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -58,5 +62,13 @@ Global
 		{424E24A3-8C16-43F7-ACCD-4CFE6A4A0056}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{424E24A3-8C16-43F7-ACCD-4CFE6A4A0056}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{424E24A3-8C16-43F7-ACCD-4CFE6A4A0056}.Release|Any CPU.Build.0 = Release|Any CPU
+		{925C82AB-B32F-4F66-A066-601B0EC8A2B2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{925C82AB-B32F-4F66-A066-601B0EC8A2B2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{925C82AB-B32F-4F66-A066-601B0EC8A2B2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{925C82AB-B32F-4F66-A066-601B0EC8A2B2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{57802AE1-2DC2-4232-B6D2-22CBFC332AE5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{57802AE1-2DC2-4232-B6D2-22CBFC332AE5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{57802AE1-2DC2-4232-B6D2-22CBFC332AE5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{57802AE1-2DC2-4232-B6D2-22CBFC332AE5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
