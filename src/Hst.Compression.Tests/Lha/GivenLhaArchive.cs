@@ -15,7 +15,7 @@
             // arrange - open lha file
             var path = Path.Combine("TestData", "lha", "amiga.lha");
             await using var stream = File.OpenRead(path);
-            var lhaArchive = new LhaArchive(stream, Encoding.GetEncoding("ISO-8859-1"));
+            var lhaArchive = new LhaArchive(stream, LhaOptions.AmigaLhaOptions);
 
             // act - read entries
             var entries = (await lhaArchive.Entries()).ToList();

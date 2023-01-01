@@ -22,22 +22,22 @@
         public const byte EXTEND_JAVA = (byte)'J';
 
         public const int UNIX_FILE_TYPEMASK = 0170000;
-        public const int UNIX_FILE_REGULAR = 0100000;
-        public const int UNIX_FILE_DIRECTORY = 0040000;
-        public const int UNIX_FILE_SYMLINK = 0120000;
-        public const int UNIX_SETUID = 0004000;
-        public const int UNIX_SETGID = 0002000;
-        public const int UNIX_STICKYBIT = 0001000;
-        public const int UNIX_OWNER_READ_PERM = 0000400;
-        public const int UNIX_OWNER_WRITE_PERM = 0000200;
-        public const int UNIX_OWNER_EXEC_PERM = 0000100;
-        public const int UNIX_GROUP_READ_PERM = 0000040;
-        public const int UNIX_GROUP_WRITE_PERM = 0000020;
-        public const int UNIX_GROUP_EXEC_PERM = 0000010;
-        public const int UNIX_OTHER_READ_PERM = 0000004;
-        public const int UNIX_OTHER_WRITE_PERM = 0000002;
-        public const int UNIX_OTHER_EXEC_PERM = 0000001;
-        public const int UNIX_RW_RW_RW = 0000666;
+        public const int UNIX_FILE_REGULAR = 0x8000; // 0100000 = bits 1000 000 000 000 000;
+        public const int UNIX_FILE_DIRECTORY = 0x4000; // octal 0040000 = bits 0100 000 000 000 000;
+        public const int UNIX_FILE_SYMLINK = 0xa000; // otcal 0120000 = bits 1010 000 000 000 000;
+        public const int UNIX_SETUID = 0x800; // octal 0004000 = bits 0000 100 000 000 000;
+        public const int UNIX_SETGID = 0x400; // octal 0002000 = bits 0000 010 000 000 000;
+        public const int UNIX_STICKYBIT = 0x200; // octal 0001000 = bits 0000 001 000 000 000;
+        public const int UNIX_OWNER_READ_PERM = 0x100; // octal 0000400 = bits 0000 000 100 000 000;
+        public const int UNIX_OWNER_WRITE_PERM = 0x80; // octal 0000200 = bits 0000 000 010 000 000;
+        public const int UNIX_OWNER_EXEC_PERM = 0x40; // octal 0000100 = bits 0000 000 001 000 000;
+        public const int UNIX_GROUP_READ_PERM = 0x20; // octal 0000040 = bits 0000 000 000 100 000;
+        public const int UNIX_GROUP_WRITE_PERM = 0x10; // octal 0000020 = bits 0000 000 000 010 000;
+        public const int UNIX_GROUP_EXEC_PERM = 0x8; // octal 0000010 = bits 0000 000 000 001 000;
+        public const int UNIX_OTHER_READ_PERM = 0x4; // octal 0000004 = bits 0000 000 000 000 100; 
+        public const int UNIX_OTHER_WRITE_PERM = 0x2; // octal 0000002 = bits 0000 000 000 000 010;
+        public const int UNIX_OTHER_EXEC_PERM = 0x1; // octal 0000001 = bits 0000 000 000 000 001;
+        public const int UNIX_RW_RW_RW = 0x1b6; // octal 0000666 = bits 0000 000 110 110 110;
 
         public const string LZHUFF0_METHOD = "-lh0-";
         public const string LZHUFF1_METHOD = "-lh1-";

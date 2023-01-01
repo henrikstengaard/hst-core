@@ -166,6 +166,29 @@ The original source code has following history and credits for maintainers:
  */
 ```
 
+## Extended header
+
+```
+/*
+ * extended header
+ *
+ *             size  field name
+ *  --------------------------------
+ *  base header:         :
+ *           2 or 4  next-header size  [*1]
+ *  --------------------------------------
+ *  ext header:   1  ext-type            ^
+ *                ?  contents            | [*1] next-header size
+ *           2 or 4  next-header size    v
+ *  --------------------------------------
+ *
+ *  on level 1, 2 header:
+ *    size field is 2 bytes
+ *  on level 3 header:
+ *    size field is 4 bytes
+ */
+```
+
 ## Generic time stamp format
 
 ```

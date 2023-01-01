@@ -1,19 +1,18 @@
 ﻿namespace Hst.Compression.Lha
 {
     using System.IO;
-    using System.Text;
     using System.Threading.Tasks;
 
     public class LhaReader
     {
         private readonly Stream stream;
-        private readonly Encoding encoding;
+        private readonly Header header;
         private LzHeader current;
 
-        public LhaReader(Stream stream, Encoding encoding)
+        public LhaReader(Stream stream, LhaOptions options)
         {
             this.stream = stream;
-            this.encoding = encoding;
+            this.header = new Header(options);
             this.current = null;
         }
 
@@ -24,7 +23,7 @@
                 stream.Seek(current.HeaderOffset + current.HeaderSize + current.PackedSize, SeekOrigin.Begin);
             }
 
-            current = await Header.GetHeader(stream, encoding);
+            current = await this.header.GetHeader(stream);
             return current;
         }
     }

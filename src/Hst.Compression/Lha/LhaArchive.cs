@@ -3,23 +3,22 @@
     using System;
     using System.Collections.Generic;
     using System.IO;
-    using System.Text;
     using System.Threading.Tasks;
 
     public class LhaArchive : IDisposable
     {
         private readonly Stream stream;
-        private readonly Encoding encoding;
+        private readonly LhaOptions options;
 
-        public LhaArchive(Stream stream, Encoding encoding)
+        public LhaArchive(Stream stream, LhaOptions options)
         {
             this.stream = stream;
-            this.encoding = encoding;
+            this.options = options;
         }
 
         public async Task<IEnumerable<LzHeader>> Entries()
         {
-            var lhaReader = new LhaReader(stream, encoding);
+            var lhaReader = new LhaReader(stream, options);
             var entries = new List<LzHeader>();
             LzHeader header;
             do

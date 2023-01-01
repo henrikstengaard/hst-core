@@ -5,10 +5,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Folder Include="Lha" />
-    </ItemGroup>
-
-    <ItemGroup>
         <None Include="readme.md" Pack="true" PackagePath="\" />
         <None Include="..\..\license.txt" Pack="true" PackagePath="\" />
     </ItemGroup>
