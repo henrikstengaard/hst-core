@@ -38,6 +38,12 @@ jobs:
       working-directory: ./src
       run: dotnet build --configuration Release -p:Version=${{ env.PACKAGE_VERSION }} -p:AssemblyVersion=${{ env.ASSEMBLY_VERSION }} -p:FileVersion=${{ env.ASSEMBLY_VERSION }}
       
+    - name: List output
+      shell: pwsh
+      working-directory: ./src
+      run: |
+        Get-ChildItem 'Hst.Compression.Tests/bin/Release' -recurse -name
+    
     - name: Test
       working-directory: ./src
       run: dotnet test --configuration Release --no-build --verbosity normal --filter Category!=Integration
@@ -45,7 +51,7 @@ jobs:
     - name: Pack
       working-directory: ./src
       run: dotnet pack --configuration Release --no-build -p:Version=${{ env.PACKAGE_VERSION }} -p:PackageVersion=${{ env.PACKAGE_VERSION }} -p:ProjectUrl=https://github.com/${{ github.repository }} -p:RepositoryUrl=https://github.com/${{ github.repository }}
-      
+
     - name: Push
       working-directory: ./src
       run: |
