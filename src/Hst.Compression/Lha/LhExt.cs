@@ -37,7 +37,7 @@ namespace Hst.Compression.Lha
                 throw new IOException($"Unknown method \"{method}\"; \"{hdr.Name}\" will be skipped ...");
             }
 
-            var crc = Extract.DecodeLzHuf(input, output, hdr, out var readSize);
+            var crc = (short)Extract.DecodeLzHuf(input, output, hdr, out var readSize);
 
             if (hdr.PackedSize != readSize)
             {

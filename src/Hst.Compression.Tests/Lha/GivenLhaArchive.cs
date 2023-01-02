@@ -1,5 +1,6 @@
 ﻿namespace Hst.Compression.Tests.Lha
 {
+    using System;
     using System.IO;
     using System.Linq;
     using System.Text;
@@ -84,6 +85,94 @@
 
             // assert - entry "test1\test2\test2.txt" data length is equal
             Assert.Equal(entry5.OriginalSize, dataStream5.Length);
+        }
+
+        [Fact]
+        public async Task WhenExtractCompressedLh0DataFromArchiveThenBytesAreEqual()
+        {
+            // arrange - open lha file
+            var path = Path.Combine("TestData", "lha", "amiga.lha");
+            await using var stream = File.OpenRead(path);
+            var lhaArchive = new LhaArchive(stream);
+
+            // act - read entries
+            var entries = (await lhaArchive.Entries()).ToList();
+
+            // assert - entry "test.txt" exist and uses lh0 method
+            var entry = entries.FirstOrDefault(x => x.Name == "test.txt");
+            Assert.NotNull(entry);
+            Assert.Equal(Constants.LZHUFF0_METHOD,entry.Method);
+
+            // act - extract entry
+            await using var output = new MemoryStream();
+            lhaArchive.Extract(entry, output);
+            
+            // assert - output size is equal to entry uncompressed length
+            Assert.Equal(entry.OriginalSize, output.Length);
+        }
+        
+        [Fact]
+        public async Task WhenExtractCompressedLh6DataFromArchiveThenBytesAreEqual()
+        {
+            // arrange - open lha file
+            var path = Path.Combine("TestData", "lha", "test_read_format_lha_lh6.lzh");
+            await using var stream = File.OpenRead(path);
+            var lhaArchive = new LhaArchive(stream);
+
+            // act - read entries
+            var entries = (await lhaArchive.Entries()).ToList();
+
+            // assert - entry "file1" exist and uses lh6 method
+            var entry = entries.FirstOrDefault(x => x.Name == "file1");
+            Assert.NotNull(entry);
+            Assert.Equal(Constants.LZHUFF6_METHOD,entry.Method);
+
+            // act - extract entry
+            await using var output = new MemoryStream();
+            lhaArchive.Extract(entry, output);
+            
+            // assert - output size is equal to entry uncompressed length
+            Assert.Equal(entry.OriginalSize, output.Length);
+        }
+        
+        [Fact]
+        public async Task WhenExtractCompressedLh7DataFromArchiveThenBytesAreEqual()
+        {
+            // arrange - open lha file
+            var path = Path.Combine("TestData", "lha", "test_read_format_lha_lh7.lzh");
+            await using var stream = File.OpenRead(path);
+            var lhaArchive = new LhaArchive(stream);
+
+            // act - read entries
+            var entries = (await lhaArchive.Entries()).ToList();
+
+            // assert - entry "file1" exist and uses lh7 method
+            var entry = entries.FirstOrDefault(x => x.Name == "file1");
+            Assert.NotNull(entry);
+            Assert.Equal(Constants.LZHUFF7_METHOD,entry.Method);
+
+            // act - extract entry
+            await using var output = new MemoryStream();
+            lhaArchive.Extract(entry, output);
+            
+            // assert - output size is equal to entry uncompressed length
+            Assert.Equal(entry.OriginalSize, output.Length);
+        }
+        
+        [Fact]
+        public async Task WhenListEntriesLhaArchiveWithJunkDataThenEntriesAreReturned()
+        {
+            // arrange - open lha file
+            var path = Path.Combine("TestData", "lha", "test_read_format_lha_lh0.lzh");
+            await using var stream = File.OpenRead(path);
+            var lhaArchive = new LhaArchive(stream);
+
+            // act - read entries
+            var entries = (await lhaArchive.Entries()).ToList();
+
+            // assert - entries have been read from lha file
+            Assert.NotEmpty(entries);
+            Assert.Equal(6, entries.Count);
         }
     }
 }

@@ -10,6 +10,10 @@
         private readonly Stream stream;
         private readonly LhaOptions options;
 
+        public LhaArchive(Stream stream) : this(stream, LhaOptions.Default)
+        {
+        }
+
         public LhaArchive(Stream stream, LhaOptions options)
         {
             this.stream = stream;

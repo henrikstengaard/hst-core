@@ -31,7 +31,6 @@ namespace Hst.Compression.Lha
         public int ExtendType { get; set; }
         public byte MinorVersion { get; set; }
 
-        public DateTime LastModifiedStamp { get; set; }
         public DateTime UnixLastModifiedStamp { get; set; }
         public ushort UnixMode { get; set; }
         public ushort UnixGid { get; set; }

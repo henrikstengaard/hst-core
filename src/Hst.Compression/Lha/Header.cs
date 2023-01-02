@@ -45,7 +45,8 @@ namespace Hst.Compression.Lha
             var headerOffset = stream.Position;
             var data = await stream.ReadBytes(I_HEADER_LEVEL + 1);
 
-            if (data == null || data.Length == 0 || (data.Length == 1 && data[0] == 0))
+            if (data == null || data.Length == 0 || (data.Length == 1 && data[0] == 0) ||
+                data.Length < I_HEADER_LEVEL + 1)
             {
                 return null;
             }
@@ -75,7 +76,7 @@ namespace Hst.Compression.Lha
                 {
                     throw new ArgumentException($"unknown symlink name \"{header.Name}\"", nameof(header.Name));
                 }
-                
+
                 /* split symbolic link */
                 var components = header.Name.Split('|');
                 header.Name = components[0]; // name is symbolic link name
@@ -84,7 +85,7 @@ namespace Hst.Compression.Lha
 
             return header;
         }
-        
+
         /*
 https://unix.stackexchange.com/questions/450480/file-permission-with-six-bytes-in-git-what-does-it-mean
          
@@ -150,7 +151,7 @@ Git doesn’t store arbitrary modes, only a subset of the values are allowed, fr
             {
                 throw new IOException("Invalid header size");
             }
-            
+
             var remainingBytes = await stream.ReadBytes(remainSize);
             var headerBytes = data.Concat(remainingBytes).ToArray();
             var headerReader = new BinaryReader(new MemoryStream(headerBytes));
@@ -173,7 +174,7 @@ Git doesn’t store arbitrary modes, only a subset of the values are allowed, fr
             header.Method = Encoding.ASCII.GetString(headerReader.ReadBytes(5));
             header.PackedSize = headerReader.ReadInt32();
             header.OriginalSize = headerReader.ReadInt32();
-            header.LastModifiedStamp = header.UnixLastModifiedStamp = DateHelper.GenericToUnixStamp(headerReader.ReadInt32());
+            header.UnixLastModifiedStamp = DateHelper.ToGenericTimeStamp(headerReader.ReadInt32());
             header.Attribute = headerReader.ReadByte();
             header.HeaderLevel = headerReader.ReadByte();
 
@@ -214,7 +215,7 @@ Git doesn’t store arbitrary modes, only a subset of the values are allowed, fr
                     if (extendSize >= 11)
                     {
                         header.MinorVersion = headerReader.ReadByte();
-                        header.UnixLastModifiedStamp = DateHelper.UnixStamp(headerReader.ReadInt32());
+                        header.UnixLastModifiedStamp = DateHelper.ToUnixTimeStamp(headerReader.ReadInt32());
                         header.UnixMode = headerReader.ReadUInt16();
                         header.UnixUid = headerReader.ReadUInt16();
                         header.UnixGid = headerReader.ReadUInt16();
@@ -270,8 +271,7 @@ Git doesn’t store arbitrary modes, only a subset of the values are allowed, fr
             header.Method = Encoding.ASCII.GetString(headerReader.ReadBytes(5));
             header.PackedSize = headerReader.ReadInt32();
             header.OriginalSize = headerReader.ReadInt32();
-            header.LastModifiedStamp =
-                header.UnixLastModifiedStamp = DateHelper.GenericToUnixStamp(headerReader.ReadInt32());
+            header.UnixLastModifiedStamp = DateHelper.ToGenericTimeStamp(headerReader.ReadInt32());
             header.Attribute = headerReader.ReadByte();
             header.HeaderLevel = headerReader.ReadByte();
 
@@ -318,7 +318,7 @@ Git doesn’t store arbitrary modes, only a subset of the values are allowed, fr
             {
                 throw new IOException("Invalid header size");
             }
-            
+
             var remainingBytes = await stream.ReadBytes(I_LEVEL2_HEADER_SIZE - COMMON_HEADER_SIZE);
             var headerBytes = data.Concat(remainingBytes).ToArray();
             var headerReader = new BinaryReader(new MemoryStream(headerBytes));
@@ -329,15 +329,14 @@ Git doesn’t store arbitrary modes, only a subset of the values are allowed, fr
                 HeaderSize = headerSize,
                 HeaderOffset = headerOffset
             };
-            
+
             // skip already read header size (first 2 data bytes)
             headerReader.BaseStream.Seek(2, SeekOrigin.Begin);
 
             header.Method = Encoding.ASCII.GetString(headerReader.ReadBytes(5));
             header.PackedSize = headerReader.ReadInt32();
             header.OriginalSize = headerReader.ReadInt32();
-            header.LastModifiedStamp = header.UnixLastModifiedStamp =
-                DateHelper.GenericToUnixStamp(headerReader.ReadInt32());
+            header.UnixLastModifiedStamp = DateHelper.ToUnixTimeStamp(headerReader.ReadInt32());
             header.Attribute = headerReader.ReadByte();
             header.HeaderLevel = headerReader.ReadByte();
 
@@ -397,7 +396,7 @@ Git doesn’t store arbitrary modes, only a subset of the values are allowed, fr
             header.Method = Encoding.ASCII.GetString(headerReader.ReadBytes(5));
             header.PackedSize = headerReader.ReadInt32();
             header.OriginalSize = headerReader.ReadInt32();
-            header.LastModifiedStamp = header.UnixLastModifiedStamp = DateHelper.UnixStamp(headerReader.ReadInt32());
+            header.UnixLastModifiedStamp = DateHelper.ToUnixTimeStamp(headerReader.ReadInt32());
             header.Attribute = headerReader.ReadByte();
             header.HeaderLevel = headerReader.ReadByte();
 
@@ -506,7 +505,8 @@ Git doesn’t store arbitrary modes, only a subset of the values are allowed, fr
                         }
                         else
                         {
-                            header.UnixLastModifiedStamp = DateHelper.UnixStamp(wintime_to_unix_stamp(dataReader)); 
+                            header.UnixLastModifiedStamp =
+                                DateHelper.ToUnixTimeStamp(wintime_to_unix_stamp(dataReader));
                         }
 
                         dataReader.ReadBytes(8); /* last access time is ignored */
@@ -536,7 +536,7 @@ Git doesn’t store arbitrary modes, only a subset of the values are allowed, fr
                         dataReader.ReadByte();
                         break;
                     case 0x54:
-                        header.UnixLastModifiedStamp = DateHelper.UnixStamp(dataReader.ReadInt32());
+                        header.UnixLastModifiedStamp = DateHelper.ToUnixTimeStamp(dataReader.ReadInt32());
                         break;
                     default:
                         /* other headers */
@@ -578,7 +578,7 @@ Git doesn’t store arbitrary modes, only a subset of the values are allowed, fr
 
             return extendedHeaderSize;
         }
-        
+
         private static long wintime_to_unix_stamp(BinaryReader dataReader)
         {
 #if HAVE_UINT64_T
@@ -594,11 +594,12 @@ Git doesn’t store arbitrary modes, only a subset of the values are allowed, fr
             int i, borrow;
             int t, q, x;
             var wintime = new int[8];
-            byte[] epoch = {0x01,0x9d,0xb1,0xde, 0xd5,0x3e,0x80,0x00};
+            byte[] epoch = { 0x01, 0x9d, 0xb1, 0xde, 0xd5, 0x3e, 0x80, 0x00 };
             /* 1970-01-01 00:00:00 (UTC) */
             /* wintime -= epoch */
             borrow = 0;
-            for (i = 7; i >= 0; i--) {
+            for (i = 7; i >= 0; i--)
+            {
                 wintime[i] = dataReader.ReadByte() - epoch[i] - borrow;
                 borrow = (wintime[i] > 0xff) ? 1 : 0;
                 wintime[i] &= 0xff;
@@ -606,13 +607,15 @@ Git doesn’t store arbitrary modes, only a subset of the values are allowed, fr
 
             /* q = wintime / 10000000 */
             t = q = 0;
-            x = 10000000;               /* x: 24bit */
-            for (i = 0; i < 8; i++) {
+            x = 10000000; /* x: 24bit */
+            for (i = 0; i < 8; i++)
+            {
                 t = (t << 8) + wintime[i]; /* 24bit + 8bit. t must be 32bit variable */
-                q <<= 8;                   /* q must be 32bit (time_t) */
+                q <<= 8; /* q must be 32bit (time_t) */
                 q += t / x;
-                t %= x;     /* 24bit */
+                t %= x; /* 24bit */
             }
+
             return q;
 #endif
         }
