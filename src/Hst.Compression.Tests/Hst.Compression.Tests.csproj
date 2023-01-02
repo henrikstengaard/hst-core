@@ -22,13 +22,48 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Content Include="TestData\**\*">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </Content>
-    </ItemGroup>
-    
-    <ItemGroup>
       <ProjectReference Include="..\Hst.Compression\Hst.Compression.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Update="TestData\Lha\amiga.lha">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="TestData\Lha\amiga-attributes.lha">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="TestData\Lha\test.txt">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="TestData\Lha\test.txt.lh0.bin">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="TestData\Lha\test1.info">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="TestData\Lha\test1.info.lh5.bin">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="TestData\Lha\test_read_format_lha_header0.lzh">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="TestData\Lha\test_read_format_lha_header1.lzh">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="TestData\Lha\test_read_format_lha_header2.lzh">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="TestData\Lha\test_read_format_lha_header3.lzh">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="TestData\Lha\test_read_format_lha_lh0.lzh">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="TestData\Lha\test_read_format_lha_lh6.lzh">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="TestData\Lha\test_read_format_lha_lh7.lzh">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
 </Project>
