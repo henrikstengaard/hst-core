@@ -14,7 +14,7 @@
         public async Task WhenReadEntriesFromLhaArchiveThenEntriesAreReturned()
         {
             // arrange - open lha file
-            var path = Path.Combine("TestData", "lha", "amiga.lha");
+            var path = Path.Combine("TestData", "Lha", "amiga.lha");
             await using var stream = File.OpenRead(path);
             var lhaArchive = new LhaArchive(stream, LhaOptions.AmigaLhaOptions);
 
@@ -91,7 +91,7 @@
         public async Task WhenExtractCompressedLh0DataFromArchiveThenBytesAreEqual()
         {
             // arrange - open lha file
-            var path = Path.Combine("TestData", "lha", "amiga.lha");
+            var path = Path.Combine("TestData", "Lha", "amiga.lha");
             await using var stream = File.OpenRead(path);
             var lhaArchive = new LhaArchive(stream);
 
@@ -115,7 +115,7 @@
         public async Task WhenExtractCompressedLh6DataFromArchiveThenBytesAreEqual()
         {
             // arrange - open lha file
-            var path = Path.Combine("TestData", "lha", "test_read_format_lha_lh6.lzh");
+            var path = Path.Combine("TestData", "Lha", "test_read_format_lha_lh6.lzh");
             await using var stream = File.OpenRead(path);
             var lhaArchive = new LhaArchive(stream);
 
@@ -139,7 +139,7 @@
         public async Task WhenExtractCompressedLh7DataFromArchiveThenBytesAreEqual()
         {
             // arrange - open lha file
-            var path = Path.Combine("TestData", "lha", "test_read_format_lha_lh7.lzh");
+            var path = Path.Combine("TestData", "Lha", "test_read_format_lha_lh7.lzh");
             await using var stream = File.OpenRead(path);
             var lhaArchive = new LhaArchive(stream);
 
@@ -163,7 +163,7 @@
         public async Task WhenListEntriesLhaArchiveWithJunkDataThenEntriesAreReturned()
         {
             // arrange - open lha file
-            var path = Path.Combine("TestData", "lha", "test_read_format_lha_lh0.lzh");
+            var path = Path.Combine("TestData", "Lha", "test_read_format_lha_lh0.lzh");
             await using var stream = File.OpenRead(path);
             var lhaArchive = new LhaArchive(stream);
 

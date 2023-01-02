@@ -242,7 +242,7 @@
         public async Task WhenReadHeadersFromAmigaLhaFileThenHeadersAreReturned()
         {
             // arrange - open lha file
-            var path = Path.Combine("TestData", "lha", "amiga.lha");
+            var path = Path.Combine("TestData", "Lha", "amiga.lha");
             await using var stream = File.OpenRead(path);
             var lhaReader = new LhaReader(stream, LhaOptions.AmigaLhaOptions);
 
@@ -300,7 +300,7 @@
         public async Task WhenReadHeadersFromAmigaLhaFileWithChangedAttributesThenHeadersAreReturned()
         {
             // arrange - open lha file
-            var path = Path.Combine("TestData", "lha", "amiga-attributes.lha");
+            var path = Path.Combine("TestData", "Lha", "amiga-attributes.lha");
             await using var stream = File.OpenRead(path);
             var lhaReader = new LhaReader(stream, LhaOptions.AmigaLhaOptions);
 

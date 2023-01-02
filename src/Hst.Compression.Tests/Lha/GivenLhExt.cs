@@ -20,7 +20,7 @@
                 HasCrc = true,
                 Crc = 17248
             };
-            var lh0CompressedBytes = await File.ReadAllBytesAsync(Path.Combine("TestData", "lha", "test.txt.lh0.bin"));
+            var lh0CompressedBytes = await File.ReadAllBytesAsync(Path.Combine("TestData", "Lha", "test.txt.lh0.bin"));
             var input = new MemoryStream(lh0CompressedBytes);
             var output = new MemoryStream();
 
@@ -29,10 +29,10 @@
 
             // assert - compare uncompressed with expected bytes
             var uncompressedBytes = output.ToArray();
-            var expectedBytes = await File.ReadAllBytesAsync(Path.Combine("TestData", "lha", "test.txt"));
+            var expectedBytes = await File.ReadAllBytesAsync(Path.Combine("TestData", "Lha", "test.txt"));
             Assert.Equal(expectedBytes, uncompressedBytes);
         }
-        
+
         [Fact]
         public async Task WhenExtractCompressedLh5DataThenBytesAreEqual()
         {
@@ -46,7 +46,8 @@
                 HasCrc = true,
                 Crc = 11704
             };
-            var lh5CompressedBytes = await File.ReadAllBytesAsync(Path.Combine("TestData", "lha", "test1.info.lh5.bin"));
+            var lh5CompressedBytes =
+                await File.ReadAllBytesAsync(Path.Combine("TestData", "Lha", "test1.info.lh5.bin"));
             await using var input = new MemoryStream(lh5CompressedBytes);
             await using var output = new MemoryStream();
 
@@ -55,7 +56,7 @@
 
             // assert - compare uncompressed with expected bytes
             var uncompressedBytes = output.ToArray();
-            var expectedBytes = await File.ReadAllBytesAsync(Path.Combine("TestData", "lha", "test1.info"));
+            var expectedBytes = await File.ReadAllBytesAsync(Path.Combine("TestData", "Lha", "test1.info"));
             Assert.Equal(expectedBytes, uncompressedBytes);
         }
     }
