@@ -22,9 +22,9 @@
     </ItemGroup>
 
     <ItemGroup>
-        <None Update="TestData\**\*">
+        <Content Include="TestData\**\*">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </None>
+        </Content>
     </ItemGroup>
     
     <ItemGroup>
