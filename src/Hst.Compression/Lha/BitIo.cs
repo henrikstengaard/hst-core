@@ -67,10 +67,10 @@ namespace Hst.Compression.Lha
             subbitbuf <<= n;
         }
 
-        public int GetBits(int n)
+        public ushort GetBits(int n)
         {
-            var x = bitbuf >> (2 * Constants.CHAR_BIT - n);
-            FillBuf(n);
+            var x = (ushort)(bitbuf >> (2 * Constants.CHAR_BIT - n));
+            FillBuf((byte)n);
             return x;
         }
         

@@ -17,7 +17,7 @@ namespace Hst.Compression.Lha
 
         public static void ReadPtLen(Lha lha, short nn, short nbit, short i_special)
         {
-            var c = 0;
+            int c;
             var n = lha.bitIo.GetBits(nbit);
             if (n == 0)
             {

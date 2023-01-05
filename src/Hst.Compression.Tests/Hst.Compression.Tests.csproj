@@ -65,5 +65,8 @@
       <None Update="TestData\Lha\test_read_format_lha_lh7.lzh">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
+      <None Update="TestData\Lha\large-file.lha">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 </Project>

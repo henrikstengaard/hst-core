@@ -1,9 +1,7 @@
 ﻿namespace Hst.Compression.Tests.Lha
 {
-    using System;
     using System.IO;
     using System.Linq;
-    using System.Text;
     using System.Threading.Tasks;
     using Compression.Lha;
     using Xunit;
@@ -150,6 +148,41 @@
             var entry = entries.FirstOrDefault(x => x.Name == "file1");
             Assert.NotNull(entry);
             Assert.Equal(Constants.LZHUFF7_METHOD,entry.Method);
+
+            // act - extract entry
+            await using var output = new MemoryStream();
+            lhaArchive.Extract(entry, output);
+            
+            // assert - output size is equal to entry uncompressed length
+            Assert.Equal(entry.OriginalSize, output.Length);
+        }
+        
+        [Fact]
+        public async Task WhenExtractLargeCompressedLh5DataFromArchiveThenBytesAreEqual()
+        {
+            // // method used to create random data file 
+            // var random = new Random();
+            // var data = new byte[1024 * 1024];
+            // for (var i = 0; i < data.Length; i++)
+            // {
+            //     data[i] = (byte)(i / 255 % 2 == 0 ? i % 256 : random.Next(0, 255));
+            // }
+            //
+            // await File.WriteAllBytesAsync("random-data-file", data);
+            
+            // arrange - open lha file
+            var path = Path.Combine("TestData", "Lha", "large-file.lha");
+            await using var stream = File.OpenRead(path);
+            var lhaArchive = new LhaArchive(stream);
+
+            // act - read entries
+            var entries = (await lhaArchive.Entries()).ToList();
+
+            // assert - entry exist
+            Assert.Single(entries);
+            var entry = entries.FirstOrDefault();
+            Assert.NotNull(entry);
+            Assert.Equal(Constants.LZHUFF5_METHOD,entry.Method);
 
             // act - extract entry
             await using var output = new MemoryStream();

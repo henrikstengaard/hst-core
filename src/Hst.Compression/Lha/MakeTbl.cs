@@ -12,14 +12,14 @@ namespace Hst.Compression.Lha
 
     public static class MakeTbl
     {
-        public static void MakeTable(short nchar, byte[] bitlen, byte tablebits, ushort[] table, ushort[] left,
+        public static void MakeTable(short nchar, byte[] bitlen, short tablebits, ushort[] table, ushort[] left,
             ushort[] right)
         {
             var count = new ushort[17];
             var weight = new ushort[17];
             var start = new ushort[17];
 
-            var avail = nchar;
+            int avail = nchar;
 
             /* initialize */
             for (var i = 1; i <= 16; i++)
@@ -43,7 +43,7 @@ namespace Hst.Compression.Lha
             }
 
             /* calculate first code */
-            var total = 0;
+            ushort total = 0;
             for (var i = 1; i <= 16; i++)
             {
                 start[i] = (ushort)total;
@@ -77,7 +77,7 @@ namespace Hst.Compression.Lha
                 k = bitlen[j];
                 if (k == 0)
                     continue;
-                var l = start[k] + weight[k];
+                var l = (uint)(start[k] + weight[k]);
                 if (k <= tablebits)
                 {
                     /* code in table */
@@ -88,44 +88,57 @@ namespace Hst.Compression.Lha
                 else
                 {
                     /* code not in table */
-                    var i = start[k];
-                    if ((i >> m) > 4096)
+                    uint i = start[k];
+                    if (i >> m > 4096)
                     {
                         /* CVE-2006-4337 */
                         throw new Exception("Bad table (case c)");
                     }
 
                     // unsigned short *p;
-                    // p = &table[i >> m]; // p points to element (i >> m) in table array
-                    var p = i >> m; // pointer to offset i >> m in array
-                        
-                    // *p: table[i >> m]
-                    // c: p = &right[*p] -> c#: p = right[table[p]]
-                        
+                    // p = &table[i >> m];
+                    // note: set p reference to element (i >> m) in table array
+                    var pArray = table; // set pointer array to table
+                    var pRef = i >> m; // set pointer reference to element i >> m in array
+                    
                     i <<= tablebits;
                     var n = k - tablebits;
                     /* make tree (n length) */
                     while (--n >= 0)
                     {
                         // if (*p == 0) {
-                        if (table[p] == 0) 
+                        if (pArray[pRef] == 0) 
                         {
                             right[avail] = left[avail] = 0;
                             // *p = avail++;
-                            table[p] = (ushort)(avail++);
+                            // note: set value of pointer to avail + 1
+                            pArray[pRef] = (ushort)(avail++);
                         }
-
+                        
                         if ((i & 0x8000) != 0)
+                        {
                             // p = &right[*p];
-                            p = right[table[p]];
+                            // note 1: "*p" get value of pointer p
+                            // note 2: "&right" get reference (address) to element (value of pointer p) in table right
+                            // note 3: "p =" set pointer to reference
+                            pRef = pArray[pRef]; // set pointer reference to pointer array at position pointer reference
+                            pArray = right; // set pointer array to right
+                        }
                         else
+                        {
                             // p = &left[*p];
-                            p = left[table[p]];
+                            // note 1: "*p" get value of pointer p
+                            // note 2: "&left" get reference (address) to element (value of pointer p) in table left
+                            // note 3: "p =" set pointer to reference
+                            pRef = pArray[pRef]; // set pointer reference to pointer array at position pointer reference
+                            pArray = left; // set pointer array to left
+                        }
                         i <<= 1;
                     }
 
                     //*p = j;
-                    table[p] = (ushort)j;
+                    // note: set value of pointer to j
+                    pArray[pRef] = (ushort)j;
                 }
 
                 start[k] = (ushort)l;
