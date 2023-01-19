@@ -60,7 +60,7 @@
                     var r = binaryReader.ReadByte();
                     binaryReader.ReadByte(); // reserved
 
-                    colors.Add(new Color(r, b, g, 255));
+                    colors.Add(new Color(r, g, b, 255));
                 }
             }
 
