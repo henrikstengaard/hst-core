@@ -15,46 +15,38 @@
         public readonly Palette Palette;
         public readonly byte[] PixelData;
 
+        private Color transparentColor;
+
         /// <summary>
         /// Image uses a transparent background color
         /// </summary>
-        public readonly bool IsTransparent;
+        public bool IsTransparent
+        {
+            get
+            {
+                if (BitsPerPixel <= 8)
+                {
+                    return Palette.IsTransparent;
+                }
+                
+                return TransparentColor != null;
+            }
+        }
 
         /// <summary>
         /// Color used as transparent background
         /// </summary>
-        public readonly Color TransparentColor;
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="width">Width of image</param>
-        /// <param name="height">Height of image</param>
-        /// <param name="bitsPerPixel">Bits per pixel used in image</param>
-        /// <param name="isTransparent">Image uses a transparent background color</param>
-        /// <param name="transparentColor">Color used as transparent background</param>
-        /// <param name="palette">Palette to use 1, 4 and 8 bits per pixel for image. Empty, if image doesn't use palette for 24 and 32 bits per pixel images.</param>
-        /// <param name="pixelData"></param>
-        /// <exception cref="ArgumentNullException"></exception>
-        /// <exception cref="ArgumentOutOfRangeException"></exception>
-        public Image(int width, int height, int bitsPerPixel, bool isTransparent, Color transparentColor,
-            Palette palette,
-            IEnumerable<byte> pixelData) : this(width, height, bitsPerPixel, isTransparent, transparentColor)
+        public Color TransparentColor
         {
-            if (bitsPerPixel > 8 && palette.Colors.Count > 0)
+            get => transparentColor;
+            set
             {
-                throw new ArgumentException("Palette must not have any colors for 24 and 32 bits per pixel images",
-                    nameof(palette));
-            }
+                if (BitsPerPixel <= 8)
+                {
+                    throw new ArgumentException("Transparent color must be set in palette for an indexed image", nameof(TransparentColor));
+                }
 
-            Palette = palette;
-            PixelData = pixelData.ToArray();
-
-            var pixelDataSize = width * height * ((bitsPerPixel <= 8 ? 8 : bitsPerPixel) / 8);
-            if (PixelData.Length != pixelDataSize)
-            {
-                throw new ArgumentOutOfRangeException(
-                    $"Image with dimension {width} x {height} and {BitsPerPixel} bits per pixel must have pixel data size of {pixelDataSize} bytes");
+                transparentColor = value;
             }
         }
 
@@ -65,41 +57,79 @@
         /// <param name="height">Height of image</param>
         /// <param name="bitsPerPixel">Bits per pixel used in image</param>
         public Image(int width, int height, int bitsPerPixel)
-            : this(width, height, bitsPerPixel, false, Color.Transparent)
         {
+            if (!IsBitsPerPixelValid(bitsPerPixel))
+            {
+                throw new ArgumentException("Only 1, 4, 8, 24 and 32 bits per pixel is supported",
+                    nameof(bitsPerPixel));
+            }
+            
+            Width = width;
+            Height = height;
+            BitsPerPixel = bitsPerPixel;
+            BytesPerPixel = bitsPerPixel <= 8 ? 1 : bitsPerPixel / 8;
+            Scanline = bitsPerPixel <= 8 ? width : width * BytesPerPixel;
+            transparentColor = null;
+            Palette = bitsPerPixel <= 8 ? new Palette(Convert.ToInt32(Math.Pow(2, bitsPerPixel))) : new Palette();
+            PixelData = new byte[Scanline * height];
         }
 
+        private static bool IsBitsPerPixelValid(int bitsPerPixel)
+        {
+            return bitsPerPixel == 1 ||
+                   bitsPerPixel == 4 || bitsPerPixel == 8 || bitsPerPixel == 24 || bitsPerPixel == 32;
+        }
+        
         /// <summary>
-        /// Create new image
+        /// Create new image without no palette
         /// </summary>
         /// <param name="width">Width of image</param>
         /// <param name="height">Height of image</param>
         /// <param name="bitsPerPixel">Bits per pixel used in image</param>
-        /// <param name="isTransparent">Image uses a transparent background color</param>
-        /// <param name="transparentColor">Color used as transparent background</param>
-        /// <exception cref="ArgumentException"></exception>
-        public Image(int width, int height, int bitsPerPixel, bool isTransparent, Color transparentColor)
+        /// <param name="pixelData">Pixel data containing palette color index for 1, 4 and 8 bits per pixel images, rgb colors for 24 bits per pixel images or rgba for 32 bits per pixel images</param>
+        public Image(int width, int height, int bitsPerPixel, IEnumerable<byte> pixelData)
+            : this(width, height, bitsPerPixel, new Palette(), pixelData)
         {
-            if (bitsPerPixel != 1 && bitsPerPixel != 4 && bitsPerPixel != 8 && bitsPerPixel != 24 && bitsPerPixel != 32)
+        }
+        
+        /// <summary>
+        /// Create new image with palette and pixel data
+        /// </summary>
+        /// <param name="width">Width of image</param>
+        /// <param name="height">Height of image</param>
+        /// <param name="bitsPerPixel">Bits per pixel used in image</param>
+        /// <param name="palette">Palette to use for 1, 4 and 8 bits per pixel images. Palette must be empty for 24 and 32 bits per pixel images.</param>
+        /// <param name="pixelData">Pixel data containing palette color index for 1, 4 and 8 bits per pixel images, rgb colors for 24 bits per pixel images or rgba for 32 bits per pixel images</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public Image(int width, int height, int bitsPerPixel, Palette palette, IEnumerable<byte> pixelData)
+        {
+            if (!IsBitsPerPixelValid(bitsPerPixel))
             {
                 throw new ArgumentException("Only 1, 4, 8, 24 and 32 bits per pixel is supported",
                     nameof(bitsPerPixel));
+            }
+            
+            if (bitsPerPixel > 8 && palette.Colors.Count > 0)
+            {
+                throw new ArgumentException("Palette must not have any colors for 24 and 32 bits per pixel images",
+                    nameof(palette));
             }
 
             Width = width;
             Height = height;
             BitsPerPixel = bitsPerPixel;
-            IsTransparent = isTransparent;
-            TransparentColor = transparentColor;
             BytesPerPixel = bitsPerPixel <= 8 ? 1 : bitsPerPixel / 8;
             Scanline = bitsPerPixel <= 8 ? width : width * BytesPerPixel;
-            Palette = bitsPerPixel <= 8 ? new Palette(Convert.ToInt32(Math.Pow(2, bitsPerPixel)), isTransparent) : new Palette();
-            PixelData = new byte[Scanline * height];
+            transparentColor = null;
+            Palette = palette;
+            PixelData = pixelData.ToArray();
 
-            // add transparent color to palette, if bits per pixel is less than or equal 8
-            if (isTransparent && bitsPerPixel <= 8)
+            var pixelDataSize = width * height * ((bitsPerPixel <= 8 ? 8 : bitsPerPixel) / 8);
+            if (PixelData.Length != pixelDataSize)
             {
-                Palette.AddColor(transparentColor);
+                throw new ArgumentOutOfRangeException(
+                    $"Image with dimension {width} x {height} and {BitsPerPixel} bits per pixel must have pixel data size of {pixelDataSize} bytes");
             }
         }
 

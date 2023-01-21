@@ -1,13 +1,14 @@
 ﻿namespace Hst.Imaging.Pngcs
 {
+    using System;
     using System.Collections.Generic;
     using System.IO;
     using Hjg.Pngcs;
 
     public static class PngReader
     {
-        private const int RgbaBytesPerPixel = 4;
-        private const int RgbaBitsPerPixel = 32;
+        private const int RGBA_BYTES_PER_PIXEL = 4;
+        private const int RGBA_BITS_PER_PIXEL = 32;
 
         public static Image Read(Stream stream)
         {
@@ -29,8 +30,8 @@
                 ReadImageLine(imageData, ref imageDataOffset, imageLine);
             }
 
-            return new Image(pngReader.ImgInfo.Cols, pngReader.ImgInfo.Rows, pngReader.ImgInfo.BitspPixel,
-                palette.IsTransparent, Color.Transparent, palette, imageData);
+            return new Image(pngReader.ImgInfo.Cols, pngReader.ImgInfo.Rows, pngReader.ImgInfo.BitspPixel, palette,
+                imageData);
         }
 
         private static Palette ReadPalette(Hjg.Pngcs.PngReader pngReader)
@@ -39,7 +40,18 @@
             var transparentChunk = pngReader.GetMetadata().GetTRNS();
 
             var isTransparent = transparentChunk != null;
-            var entriesWithAlpha = transparentChunk != null ? transparentChunk.GetPalletteAlpha().Length : 0;
+            var transparentAlpha = transparentChunk != null ? transparentChunk.GetPalletteAlpha() : Array.Empty<int>();
+            var entriesWithAlpha = transparentAlpha.Length;
+
+            var transparentColor = -1;
+            for (var i = 0; i < transparentAlpha.Length; i++)
+            {
+                if (transparentAlpha[i] == 0)
+                {
+                    transparentColor = i;
+                    break;
+                }
+            }
 
             var colors = new List<Color>();
 
@@ -48,15 +60,19 @@
                 var rgb = new int[4];
                 paletteChunk.GetEntryRgb(i, rgb);
                 colors.Add(new Color(rgb[0], rgb[1], rgb[2],
-                    isTransparent && i < entriesWithAlpha ? transparentChunk.GetPalletteAlpha()[i] : 255));
+                    isTransparent && i < entriesWithAlpha ? transparentAlpha[i] : 255));
             }
 
-            return new Palette(colors, isTransparent);
+            var palette = new Palette(colors)
+            {
+                TransparentColor = isTransparent && transparentColor >= 0 ? transparentColor : -1
+            };
+            return palette;
         }
 
         private static Image ReadImage(Hjg.Pngcs.PngReader pngReader)
         {
-            var imageData = new byte[pngReader.ImgInfo.Cols * pngReader.ImgInfo.Rows * RgbaBytesPerPixel];
+            var imageData = new byte[pngReader.ImgInfo.Cols * pngReader.ImgInfo.Rows * RGBA_BYTES_PER_PIXEL];
 
             var transparentChunk = pngReader.GetMetadata().GetTRNS();
             var isTransparent = transparentChunk != null;
@@ -70,11 +86,15 @@
                 ReadImageLine(imageData, ref imageDataOffset, imageLine, transparentRgb);
             }
 
-            var transparentColor = transparentRgb == null
-                ? Color.Transparent
-                : new Color(transparentRgb[0], transparentRgb[1], transparentRgb[2], 0);
-            return new Image(pngReader.ImgInfo.Cols, pngReader.ImgInfo.Rows, RgbaBitsPerPixel, transparentRgb != null,
-                transparentColor, new Palette(), imageData);
+            var image = new Image(pngReader.ImgInfo.Cols, pngReader.ImgInfo.Rows, RGBA_BITS_PER_PIXEL, new Palette(),
+                imageData);
+
+            if (transparentRgb != null)
+            {
+                image.TransparentColor = new Color(transparentRgb[0], transparentRgb[1], transparentRgb[2], 0);
+            }
+
+            return image;
         }
 
         private static void ReadImageLine(byte[] imageData, ref int imageDataOffset, ImageLine imageLine,
@@ -91,7 +111,7 @@
                 ReadPixel(imageData, imageDataOffset, imageLine, scanlineOffset, transparentRgb);
 
                 scanlineOffset += imageLine.ImgInfo.Channels;
-                imageDataOffset += imageLine.ImgInfo.Channels == 1 ? 1 : RgbaBytesPerPixel;
+                imageDataOffset += imageLine.ImgInfo.Channels == 1 ? 1 : RGBA_BYTES_PER_PIXEL;
             }
         }
 

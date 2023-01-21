@@ -38,12 +38,8 @@
 
         protected void AddPaletteColors(Image image, bool isTransparent)
         {
-            // transparent color is automatically added, add black color if not transparent
-            if (!isTransparent)
-            {
-                // add black color (color 0)
-                image.Palette.AddColor(CreateBlackColor(false));
-            }
+            // add black color (color 0)
+            image.Palette.AddColor(CreateBlackColor(isTransparent));
 
             // add red color (color 1)
             image.Palette.AddColor(CreateRedColor());
@@ -55,7 +51,7 @@
         protected Image Create4BppImage(bool isTransparent)
         {
             // create new 2 x 2 image with 4 bits per pixel
-            var image = new Image(2, 2, 4, isTransparent, CreateBlackColor(isTransparent));
+            var image = new Image(2, 2, 4);
 
             // add palette colors
             AddPaletteColors(image, isTransparent);
@@ -71,7 +67,7 @@
         protected Image Create8BppImage(bool isTransparent)
         {
             // create new 2 x 2 image with 8 bits per pixel 
-            var image = new Image(2, 2, 8, isTransparent, CreateBlackColor(isTransparent));
+            var image = new Image(2, 2, 8);
             
             // add palette colors
             AddPaletteColors(image, isTransparent);
@@ -87,7 +83,7 @@
         protected Image Create24BppImage(bool isTransparent)
         {
             // create new 2 x 2 image with 24 bits per pixel 
-            var image = new Image(2, 2, 24, isTransparent, CreateBlackColor(isTransparent));
+            var image = new Image(2, 2, 24);
             
             // set pixels
             SetPixels(image, isTransparent);

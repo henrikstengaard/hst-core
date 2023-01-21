@@ -166,13 +166,12 @@
             const int width = 2;
             const int height = 2;
             const int bitsPerPixel = 8;
-            const bool isTransparent = false;
 
-            var pixelData = new byte[2000]; // incorrect
+            var pixelData = new byte[2000]; // incorrect, 2 * 2 * (8 / 8) = 4
 
             // act and assert - create image throws out of range exception as 2 * 2 * 1 doesn't match 4 bytes 
             Assert.Throws<ArgumentOutOfRangeException>(() =>
-                new Image(width, height, bitsPerPixel, isTransparent, Color.Transparent, new Palette(), pixelData));
+                new Image(width, height, bitsPerPixel, new Palette(), pixelData));
         }
     }
 }

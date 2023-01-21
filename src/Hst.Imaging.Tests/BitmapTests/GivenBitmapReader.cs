@@ -72,8 +72,8 @@
         public async Task WhenWriteAndReadBitmapWith8BppThenImageMatch()
         {
             // arrange - expected image 2 x 2 image with 8 bits per pixel
-            const bool isTransparent = false; // 8 bits per pixel bitmap doesn't be transparent
-            var expectedImage = new Image(2, 2, 8, isTransparent, CreateBlackColor(isTransparent));
+            const bool isTransparent = false; // 8 bits per pixel bitmap can't be transparent
+            var expectedImage = new Image(2, 2, 8);
             
             // arrange - add palette color
             expectedImage.Palette.AddColor(new Color(10, 20, 30));

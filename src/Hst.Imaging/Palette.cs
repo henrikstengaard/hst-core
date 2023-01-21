@@ -7,7 +7,7 @@
 
     public class Palette
     {
-        public readonly bool IsTransparent;
+        public bool IsTransparent => TransparentColor >= 0 && TransparentColor < maxColors;
         public int TransparentColor { get; set; }
 
         private readonly int maxColors;
@@ -18,21 +18,20 @@
         /// Create palette without colors
         /// </summary>
         public Palette()
-            : this(0)
+            : this(-1)
         {
         }
 
         /// <summary>
         /// Create new palette with maximum number of colors allowed to add
         /// </summary>
-        public Palette(int maxColors, bool isTransparent = false)
+        public Palette(int maxColors)
         {
             if (maxColors > 256)
             {
                 throw new ArgumentOutOfRangeException(nameof(maxColors), "Palette can maximum have 256 colors");
             }
             
-            this.IsTransparent = isTransparent;
             this.maxColors = maxColors;
             this.colors = new List<Color>();
             Colors = new ReadOnlyCollection<Color>(this.colors);
@@ -41,9 +40,8 @@
         /// <summary>
         /// Create new palette with predefined colors
         /// </summary>
-        /// <param name="isTransparent"></param>
         /// <param name="colors"></param>
-        public Palette(IEnumerable<Color> colors, bool isTransparent = false)
+        public Palette(IEnumerable<Color> colors)
         {
             this.colors = colors.ToList();
             
@@ -52,11 +50,22 @@
                 throw new ArgumentOutOfRangeException(nameof(maxColors), "Palette can maximum have 256 colors");
             }
             
-            this.IsTransparent = isTransparent;
+
             this.maxColors = this.colors.Count;
             Colors = new ReadOnlyCollection<Color>(this.colors);
         }
 
+        /// <summary>
+        /// Create new palette with predefined colors and set transparent color
+        /// </summary>
+        /// <param name="colors"></param>
+        /// <param name="transparentColor"></param>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public Palette(IEnumerable<Color> colors, int transparentColor) : this(colors)
+        {
+            TransparentColor = transparentColor;
+        }
+        
         /// <summary>
         /// Add color from rgba
         /// </summary>

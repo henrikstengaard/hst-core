@@ -108,8 +108,8 @@
                     bitmapPixelOffset += bytesPerPixel;
                 }
             }
-            
-            return new Image(imageWidth, imageHeight, bitsPerPixel, false, Color.Transparent, new Palette(colors), data);
+
+            return new Image(imageWidth, imageHeight, bitsPerPixel, new Palette(colors), data);
         }
     }
 }
