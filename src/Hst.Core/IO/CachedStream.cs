@@ -17,26 +17,12 @@
         private readonly IDictionary<long, CachedBlock> cachedBlocks;
         private readonly IDictionary<long, CachedBlock> updatedCachedBlocks;
         private readonly System.Timers.Timer flushTimer;
+        private readonly bool flushTimerEnabled;
         private long position;
 
-        //private readonly object cachedBlocksLock = new object();
         private readonly SemaphoreSlim semaphoreLock = new SemaphoreSlim(1, 1);
 
-        public IEnumerable<long> CachedBlockOffsets
-        {
-            get
-            {
-                semaphoreLock.Wait();
-                try
-                {
-                    return cachedBlocks.Keys;
-                }
-                finally
-                {
-                    semaphoreLock.Release();
-                }
-            }
-        }
+        public IEnumerable<long> CachedBlockOffsets => cachedBlocks.Keys;
 
         public CachedStream(Stream stream, int blockSize, int blocksLimit, TimeSpan flushInterval)
         {
@@ -45,15 +31,19 @@
             this.blocksLimit = blocksLimit;
             this.cachedBlocks = new Dictionary<long, CachedBlock>();
             this.updatedCachedBlocks = new Dictionary<long, CachedBlock>();
+            flushTimerEnabled = flushInterval.TotalMilliseconds > 0;
             flushTimer = new System.Timers.Timer();
             flushTimer.Enabled = false;
-            flushTimer.Interval = flushInterval.TotalMilliseconds;
+            if (flushTimerEnabled)
+            {
+                flushTimer.Interval = flushInterval.TotalMilliseconds;
+            }
             flushTimer.Elapsed += (sender, args) => Flush();
             this.position = 0;
         }
 
         public CachedStream(Stream stream, int blockSize, int blocksLimit)
-            : this(stream, blockSize, blocksLimit, TimeSpan.FromSeconds(10))
+            : this(stream, blockSize, blocksLimit, TimeSpan.Zero)
         {
         }
 
@@ -156,6 +146,10 @@
                 updatedCachedBlocks.Add(cachedBlock.Offset, cachedBlock);
             }
 
+            if (!flushTimerEnabled)
+            {
+                return;
+            }
             flushTimer.Enabled = true;
         }
 
@@ -223,6 +217,11 @@
             }
 
             updatedCachedBlocks.Clear();
+            
+            if (!flushTimerEnabled)
+            {
+                return;
+            }
             flushTimer.Enabled = false;
         }
 
