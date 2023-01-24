@@ -77,7 +77,7 @@ public class GivenCachedStream
         // assert - no offsets have been written to
         Assert.Equal(0, monitorStream.Writes.Count);
     }
-    
+
     [Fact]
     public void WhenReadingOver3BlocksThenDataMatchesAndStreamOffsetsAreOnlyReadOnce()
     {
@@ -108,6 +108,75 @@ public class GivenCachedStream
         
         // assert - no offsets have been written to
         Assert.Equal(0, monitorStream.Writes.Count);
+    }
+
+    [Fact]
+    public void WhenReadingOver2BlocksWith1MbBlockSizeThenDataMatchesAndStreamOffsetsAreOnlyReadOnce()
+    {
+        // arrange - data to read
+        var data = new byte[2 * 1024 * 1024];
+        for (var i = 0; i < data.Length; i++)
+        {
+            data[i] = (byte)(i + 1);
+        }
+        
+        // arrange - cached stream with block size 10
+        var stream = new MemoryStream(data);
+        var monitorStream = new MonitorStream(stream);
+        var cachedStream = new CachedStream(monitorStream, 1024 * 1024, 10);
+
+        // arrange - seek position 1048064, near end of first block
+        cachedStream.Seek(1048064, SeekOrigin.Begin);
+        
+        // act - read 4096 bytes, 515 from first block and 3583 from second block
+        var buffer = new byte[4096];
+        var bytesRead = cachedStream.Read(buffer, 0, buffer.Length);
+        Assert.Equal(4096, bytesRead);
+        Assert.Equal(data.Skip(1048064).Take(4096), buffer);
+        
+        // assert - 2 offsets have been read, offset 0 and 1048576
+        Assert.Equal(2, monitorStream.Reads.Count);
+        Assert.Equal(new []{ 0L, 1048576L }, monitorStream.Reads.ToArray());
+        
+        // assert - no offsets have been written to
+        Assert.Equal(0, monitorStream.Writes.Count);
+    }
+
+    [Fact]
+    public void WhenWritingOver2BlocksWith1MbBlockSizeThenDataMatchesAndStreamOffsetsAreOnlyWrittenOnce()
+    {
+        // arrange - data to read
+        var data = new byte[2 * 1024 * 1024];
+        for (var i = 0; i < data.Length; i++)
+        {
+            data[i] = (byte)(i + 1);
+        }
+        
+        // arrange - cached stream with block size 10
+        var stream = new MemoryStream(data);
+        var monitorStream = new MonitorStream(stream);
+        var cachedStream = new CachedStream(monitorStream, 1024 * 1024, 10);
+
+        // arrange - seek position 1048064, near end of first block
+        cachedStream.Seek(1048064, SeekOrigin.Begin);
+        
+        // act - write 4096 bytes, 515 from first block and 3583 from second block
+        var buffer = new byte[4096];
+        cachedStream.Write(buffer, 0, buffer.Length);
+        
+        // act - write updated cached blocks
+        cachedStream.Flush();
+
+        // arrange - update data with expected change
+        Array.Copy(buffer, 0, data, 1048064, 4096);
+        
+        // assert - expected data matches updated data in stream
+        var updatedData = stream.ToArray();
+        Assert.Equal(data, updatedData);
+        
+        // assert - 2 offsets have been written, offset 0 and 1048576
+        Assert.Equal(2, monitorStream.Writes.Count);
+        Assert.Equal(new []{ 0L, 1048576L }, monitorStream.Writes.ToArray());
     }
 
     [Fact]
@@ -362,5 +431,5 @@ public class GivenCachedStream
         // assert - cached stream has flushed updated cached blocks and written offset 2 twice
         Assert.Equal(2, monitorStream.Writes.Count);
         Assert.Equal(2, monitorStream.Writes.Count(x => x == 0));
-    }    
+    }
 }

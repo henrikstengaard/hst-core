@@ -82,10 +82,10 @@
             var bytesRead = 0;
             foreach (var cachedBlock in cachedBlocksWithBuffer)
             {
-                var bytesFromBlock = bytesRead + cachedBlock.Length > count
-                    ? count - bytesRead
-                    : cachedBlock.Length - positionInBlock;
-
+                var bytesFromBlock = positionInBlock + (count - bytesRead) > cachedBlock.Length
+                    ? cachedBlock.Length - positionInBlock
+                    : positionInBlock + (count - bytesRead);
+                
                 Array.Copy(cachedBlock.Data, positionInBlock, buffer, bytesRead, bytesFromBlock);
 
                 positionInBlock = 0;
@@ -122,10 +122,10 @@
             var bytesWritten = 0;
             foreach (var cachedBlock in cachedBlocksToUpdate)
             {
-                var bytesToBlock = bytesWritten + blockSize > count
-                    ? count - bytesWritten
-                    : blockSize - positionInBlock;
-
+                var bytesToBlock = positionInBlock + (count - bytesWritten) > blockSize
+                    ? blockSize - positionInBlock
+                    : positionInBlock + (count - bytesWritten);
+                
                 Array.Copy(buffer, offset + bytesWritten, cachedBlock.Data, positionInBlock, bytesToBlock);
 
                 if (cachedBlock.Length < blockSize)
