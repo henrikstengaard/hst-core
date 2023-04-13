@@ -8,6 +8,12 @@
 
         public static DateTime ToGenericTimeStamp(long timeStamp)
         {
+            // return min date for lha, if timestamp is out of range
+            if (timeStamp < 0 || timeStamp > int.MaxValue)
+            {
+                return new DateTime(1980, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            }
+            
             var second = SubBits(timeStamp, 0, 5) * 2;
             var minute = SubBits(timeStamp, 5, 6);
             var hour = SubBits(timeStamp, 11, 5);

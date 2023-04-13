@@ -271,7 +271,7 @@ Git doesn’t store arbitrary modes, only a subset of the values are allowed, fr
             header.Method = Encoding.ASCII.GetString(headerReader.ReadBytes(5));
             header.PackedSize = headerReader.ReadInt32();
             header.OriginalSize = headerReader.ReadInt32();
-            header.UnixLastModifiedStamp = DateHelper.ToGenericTimeStamp(headerReader.ReadInt32());
+            header.UnixLastModifiedStamp = DateHelper.ToGenericTimeStamp(headerReader.ReadUInt32());
             header.Attribute = headerReader.ReadByte();
             header.HeaderLevel = headerReader.ReadByte();
 

@@ -143,6 +143,76 @@ public class GivenCachedStream
     }
 
     [Fact]
+    public void WhenReadingFrom1BlockThenDataMatchesAndStreamOffsetIsOnlyReadOnce()
+    {
+        // arrange - data to read
+        var data = new byte[10 * 1024];
+        for (var i = 0; i < data.Length; i++)
+        {
+            data[i] = (byte)(i + 1);
+        }
+        
+        // arrange - cached stream with block size 10240
+        var stream = new MemoryStream(data);
+        var monitorStream = new MonitorStream(stream);
+        var cachedStream = new CachedStream(monitorStream, 10 * 1024, 10);
+
+        // arrange - seek position 1536
+        cachedStream.Seek(1536, SeekOrigin.Begin);
+        
+        // act - read 4096 bytes, 515 from first block and 3583 from second block
+        var buffer = new byte[512];
+        var bytesRead = cachedStream.Read(buffer, 0, buffer.Length);
+        Assert.Equal(512, bytesRead);
+        Assert.Equal(data.Skip(1536).Take(512), buffer);
+        
+        // assert - 1 offset have been read, offset 0
+        Assert.Equal(1, monitorStream.Reads.Count);
+        Assert.Equal(new []{ 0L }, monitorStream.Reads.ToArray());
+        
+        // assert - no offsets have been written to
+        Assert.Equal(0, monitorStream.Writes.Count);
+    }
+    
+    [Fact]
+    public void WhenWritingTo1BlockThenDataMatchesAndStreamOffsetIsOnlyWrittenOnce()
+    {
+        // arrange - data to read
+        var data = new byte[10 * 1024];
+        for (var i = 0; i < data.Length; i++)
+        {
+            data[i] = (byte)(i + 1);
+        }
+        
+        // arrange - cached stream with block size 10
+        var stream = new MemoryStream(data);
+        var monitorStream = new MonitorStream(stream);
+        var cachedStream = new CachedStream(monitorStream, 10 * 1024, 10);
+
+        // arrange - seek position 1536
+        cachedStream.Seek(1536, SeekOrigin.Begin);
+        
+        // act - write 512 bytes, 515 in first block
+        var buffer = new byte[512];
+        cachedStream.Write(buffer, 0, buffer.Length);
+        
+        // act - write updated cached blocks
+        cachedStream.Flush();
+
+        // arrange - update data with expected change
+        Array.Copy(buffer, 0, data, 1536, 512);
+        
+        // assert - expected data matches updated data in stream
+        var updatedData = stream.ToArray();
+        Assert.Equal(data, updatedData);
+        
+        // assert - 1 offsets have been written, offset 0
+        Assert.Equal(1, monitorStream.Writes.Count);
+        Assert.Equal(new []{ 0L }, monitorStream.Writes.ToArray());
+    }
+
+
+    [Fact]
     public void WhenWritingOver2BlocksWith1MbBlockSizeThenDataMatchesAndStreamOffsetsAreOnlyWrittenOnce()
     {
         // arrange - data to read

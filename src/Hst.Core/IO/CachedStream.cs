@@ -82,9 +82,9 @@
             var bytesRead = 0;
             foreach (var cachedBlock in cachedBlocksWithBuffer)
             {
-                var bytesFromBlock = positionInBlock + (count - bytesRead) > cachedBlock.Length
+                var bytesFromBlock = positionInBlock + (count - bytesRead) >= cachedBlock.Length
                     ? cachedBlock.Length - positionInBlock
-                    : positionInBlock + (count - bytesRead);
+                    : count - bytesRead;
                 
                 Array.Copy(cachedBlock.Data, positionInBlock, buffer, bytesRead, bytesFromBlock);
 
@@ -115,16 +115,17 @@
         {
             var startOffset = position - (int)(position % blockSize);
             var positionInBlock = (int)(position - startOffset);
-            var blocks = 1 + (positionInBlock + count > blockSize ? (positionInBlock + count) / blockSize : 0);
+            // var blocks = 1 + (positionInBlock + count > blockSize ? (positionInBlock + count) / blockSize : 0);
+            var blocks = Convert.ToInt32(Math.Ceiling(((double)positionInBlock + count) / blockSize));
 
             var cachedBlocksToUpdate = FetchCachedBlocks(startOffset, blocks).ToList();
 
             var bytesWritten = 0;
             foreach (var cachedBlock in cachedBlocksToUpdate)
             {
-                var bytesToBlock = positionInBlock + (count - bytesWritten) > blockSize
+                var bytesToBlock = positionInBlock + (count - bytesWritten) >= blockSize
                     ? blockSize - positionInBlock
-                    : positionInBlock + (count - bytesWritten);
+                    : count - bytesWritten;
                 
                 Array.Copy(buffer, offset + bytesWritten, cachedBlock.Data, positionInBlock, bytesToBlock);
 
