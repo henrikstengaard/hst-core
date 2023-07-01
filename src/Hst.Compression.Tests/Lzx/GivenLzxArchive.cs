@@ -17,28 +17,36 @@ public class GivenLzxArchive
         var lzxArchive = new LzxArchive(stream);
 
         // act - read entries
-        var entries = (await lzxArchive.Entries()).ToList();
+        //var entries = (await lzxArchive.Entries()).ToList();
         
         // assert - lzx archive contains 24 entries
-        Assert.Equal(24, entries.Count);
+        //Assert.Equal(24, entries.Count);
 
-        var entry = entries.FirstOrDefault(x => x.Name == "xpkFEAL.library");
-        byte[] actualBytes;
-        using (var memoryStream = new MemoryStream())
+        var iterator = lzxArchive.GetIterator();
+        LzxEntry entry;
+        while ((entry = await iterator.Next()) != null)
         {
-            LzxExtract.Extract(lzxArchive, entry, memoryStream);
-            actualBytes = memoryStream.ToArray();
-        }
-
-        var expectedBytes = await File.ReadAllBytesAsync(Path.Combine("TestData", "Lzx", "xpkFEAL.library"));
-        
-        Assert.Equal(expectedBytes.Length, actualBytes.Length);
-        for (var i = 0; i < expectedBytes.Length; i++)
-        {
-            if (expectedBytes[i] != actualBytes[i])
+            // arrange - read expected bytes
+            var expectedBytes = await File.ReadAllBytesAsync(Path.Combine("TestData", "Lzx", entry.Name));
+            
+            // act - extract entry
+            byte[] actualBytes;
+            using (var memoryStream = new MemoryStream())
             {
-                
+                iterator.Extract(memoryStream);
+                actualBytes = memoryStream.ToArray();
             }
+
+            // assert - expected files are equal to extracted actual bytes 
+            Assert.Equal(expectedBytes.Length, actualBytes.Length);
+            Assert.Equal(expectedBytes, actualBytes);
+            // for (var i = 0; i < expectedBytes.Length; i++)
+            // {
+            //     if (expectedBytes[i] != actualBytes[i])
+            //     {
+            //     
+            //     }
+            // }
         }
     }
 }

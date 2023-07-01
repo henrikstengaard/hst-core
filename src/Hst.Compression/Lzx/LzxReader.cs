@@ -11,12 +11,14 @@
 
         private readonly Stream stream;
         private readonly LzxOptions lzxOptions;
+        private readonly bool extract;
         private bool isFirst;
 
-        public LzxReader(Stream stream, LzxOptions lzxOptions)
+        public LzxReader(Stream stream, LzxOptions lzxOptions, bool extract)
         {
             this.stream = stream;
             this.lzxOptions = lzxOptions;
+            this.extract = extract;
             this.isFirst = true;
         }
 
@@ -148,7 +150,7 @@
             // }
 
             var offset = stream.Position;
-            if (pack_size > 0) /* seek past the packed data */
+            if (!extract && pack_size > 0) /* seek past the packed data */
             {
                 //merge_size = 0;
                 if (stream.Seek(pack_size, SeekOrigin.Current) == 0)

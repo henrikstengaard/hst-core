@@ -58,10 +58,9 @@
 
             var temp = ~(uint)sum; /* was (sum ^ 4294967295) */
 
-            var i = offset;
             do
             {
-                temp = CrcTable[(bytes[i++] ^ temp) & 255] ^ (temp >> 8);
+                temp = CrcTable[(bytes[offset++] ^ temp) & 255] ^ (temp >> 8);
             } while (--length > 0);
 
             sum = ~(int)temp; /* was (temp ^ 4294967295) */
