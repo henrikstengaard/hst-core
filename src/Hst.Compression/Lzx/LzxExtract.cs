@@ -83,7 +83,7 @@
 
                         if (lzxArchive.pack_size < count) count = lzxArchive.pack_size; /* make sure we don't read too much */
 
-                        var bytesRead = lzxArchive.stream.Read(lzxArchive.read_buffer, 0, count);
+                        var bytesRead = lzxArchive.stream.Read(lzxArchive.read_buffer, temp, count);
                         if (bytesRead != count)
                         {
                             throw new IOException("Failed to read data");
