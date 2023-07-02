@@ -52,6 +52,37 @@
             literal_table = new ushort[5120];
         }
 
+        public void Reset(uint global_control, int global_shift, uint last_offset)
+        {
+            this.global_control = global_control;
+            this.global_shift = global_shift;
+            this.last_offset = last_offset;
+            for (var i = 0; i < offset_len.Length; i++)
+            {
+                offset_len[i] = 0;
+            }
+            for (var i = 0; i < offset_table.Length; i++)
+            {
+                offset_table[i] = 0;
+            }
+            for (var i = 0; i < huffman20_len.Length; i++)
+            {
+                huffman20_len[i] = 0;
+            }
+            for (var i = 0; i < huffman20_table.Length; i++)
+            {
+                huffman20_table[i] = 0;
+            }
+            for (var i = 0; i < literal_len.Length; i++)
+            {
+                literal_len[i] = 0;
+            }
+            for (var i = 0; i < literal_table.Length; i++)
+            {
+                literal_table[i] = 0;
+            }
+        }
+
 /* Read and build the decrunch tables. There better be enough data in the */
 /* source buffer or it's stuffed. */
 

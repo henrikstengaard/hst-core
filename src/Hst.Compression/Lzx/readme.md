@@ -1,33 +1,32 @@
 # Lzx
 
-Lzx directory contains classes to read and extract Lzx archives. It's based on "unlzx" at http://aminet.net/misc/unix/unlzx.c.gz.
+Lzx directory contains classes to read and extract Lzx archives. It's based on "unlzx" at https://aminet.net/misc/unix/unlzx.c.gz written by Erik Meusel and uses a sample lzx archive "xpk_compress.lzx" from http://justsolve.archiveteam.org/wiki/LZX for unit tests.
 
-emeusel at cs.uni-magdeburg.de (Erik Meusel)
+LZX is both a compression algorithm (of the Lempel-Ziv family) and an archiving program (and file format). The archiving program and compression algorithm were both created by Jonathan Forbes and Tomi Poutanen in Canada, and the archiver was released for the Amiga computer in both shareware and registered versions. When the authors ended support for the program in 1997, they released a key for the registered version so that anybody could use it free.
 
-http://justsolve.archiveteam.org/wiki/LZX
+Original license and readme files are located in `licenses` directory.
 
+## Usage
 
-lzx archive structured like this:
-- entry 1
-- entry 2
-- entry 3
-- entry 4
-- entry 5
-- entry 6
-- entry 7
-- entry 8
-- entry 9
-- compressed data for entry 1-9
-- entry 10
-- entry 11
-- entry 12
-- entry 13
-- entry 14
-- entry 15
-- entry 16
-- entry 17
-- entry 18
-- compressed data for entry 10-18
-- ... and so on
+Example of listing entries in a lzx archive:
 
-therefore the extract method has to decompress through all compressed data even if just only one entry is extracted.
+```
+await using var stream = File.OpenRead("test.lzx");
+var lzxArchive = new LzxArchive(stream);
+var entries = (await lzxArchive.Entries()).ToList();
+```
+
+Example of extracting files from a lzx archive:
+
+```
+await using var stream = File.OpenRead("test.lzx");
+var lzxArchive = new LzxArchive(stream);
+
+LzxEntry entry;
+while ((entry = await lzxArchive.Next()) != null)
+{
+    await using var output = File.OpenWrite(entry.Name);
+    await lzxArchive.Extract(output);
+}
+```
+

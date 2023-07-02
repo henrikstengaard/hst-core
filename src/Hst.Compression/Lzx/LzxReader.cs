@@ -157,15 +157,7 @@
                 {
                     throw new IOException("Seek pack size failed");
                 }
-                // if(!fseek(in_file, pack_size, SEEK_CUR))
-                // {
-                //  abort = 0; /* continue */
-                // }
-                // else
-                //  perror("FSeek()");
             }
-            // else
-            //  abort = 0; /* continue */
 
             return new LzxEntry
             {
@@ -174,7 +166,7 @@
                 Name = filename,
                 Comment = comment,
                 Date = new DateTime(year, month, day, hour, minute, second, DateTimeKind.Local),
-                PackMode = pack_mode,
+                PackMode = (PackModeEnum)pack_mode,
                 PackedSize = pack_size,
                 UnpackedSize = unpack_size,
                 Attributes = attributes
