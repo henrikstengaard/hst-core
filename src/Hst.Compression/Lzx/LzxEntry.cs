@@ -4,7 +4,8 @@
 
     public class LzxEntry
     {
-        public long Offset { get; set; }
+        public long EntryOffset { get; set; }
+        public long DataOffset { get; set; }
         public string Name { get; set; }
         public string Comment { get; set; }
         public DateTime Date { get; set; }
@@ -13,5 +14,6 @@
         public int UnpackedSize { get; set; }
         public int Attributes { get; set; }
         public int DataCrc { get; set; }
+        public bool IsMergedEntry { get; set; }
     }
 }

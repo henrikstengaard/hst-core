@@ -47,6 +47,8 @@
                 isFirst = false;
             }
 
+            var entryOffset = stream.Position;
+            
             // actual = fread(archive_header, 1, 31, in_file);
             var archiveHeaderBytes = new byte[ArchiveHeaderSize];
             var bytesRead = await stream.ReadAsync(archiveHeaderBytes, 0, ArchiveHeaderSize);
@@ -114,25 +116,12 @@
             var date = (archiveHeaderBytes[18] << 24) + (archiveHeaderBytes[19] << 16) + (archiveHeaderBytes[20] << 8) +
                        archiveHeaderBytes[21]; /* date */
             var year = ((date >> 17) & 63) + 1970;
-            var month = (date >> 23) & 15;
+            var month = ((date >> 23) & 15) + 1;
             var day = (date >> 27) & 31;
             var hour = (date >> 12) & 31;
             var minute = (date >> 6) & 63;
             var second = date & 63;
 
-            // total_pack += pack_size;
-            // total_unpack += unpack_size;
-            // total_files++;
-            // merge_size += unpack_size;
-
-            // printf("%8ld ", unpack_size);
-            // if(archive_header[12] & 1)
-            //  printf("     n/a ");
-            // else
-            //  printf("%8ld ", pack_size);
-            // printf("%02ld:%02ld:%02ld ", hour, minute, second);
-            // printf("%2ld-%s-%4ld ", day, month_str[month], year);
-            // printf("%c%c%c%c%c%c%c%c ",
             //  (attributes & 32) ? 'h' : '-',
             //  (attributes & 64) ? 's' : '-',
             //  (attributes & 128) ? 'p' : '-',
@@ -141,15 +130,8 @@
             //  (attributes & 2) ? 'w' : '-',
             //  (attributes & 8) ? 'e' : '-',
             //  (attributes & 4) ? 'd' : '-');
-            // printf("\"%s\"\n", header_filename);
-            // if(header_comment[0])
-            //  printf(": \"%s\"\n", header_comment);
-            // if((archive_header[12] & 1) && pack_size)
-            // {
-            //  printf("%8ld %8ld Merged\n", merge_size, pack_size);
-            // }
 
-            var offset = stream.Position;
+            var dataOffset = stream.Position;
             if (!extract && pack_size > 0) /* seek past the packed data */
             {
                 //merge_size = 0;
@@ -159,9 +141,12 @@
                 }
             }
 
+            var isMergedEntry = (archiveHeaderBytes[12] & 1) == 1 && pack_size > 0;
+            
             return new LzxEntry
             {
-                Offset = offset,
+                EntryOffset = entryOffset,
+                DataOffset = dataOffset,
                 DataCrc = dataCrc,
                 Name = filename,
                 Comment = comment,
@@ -169,7 +154,8 @@
                 PackMode = (PackModeEnum)pack_mode,
                 PackedSize = pack_size,
                 UnpackedSize = unpack_size,
-                Attributes = attributes
+                Attributes = attributes,
+                IsMergedEntry = isMergedEntry
             };
         }
     }

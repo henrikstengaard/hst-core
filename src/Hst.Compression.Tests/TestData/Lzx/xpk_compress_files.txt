@@ -1,0 +1,31 @@
+Unpacked   Packed Time     Date        Attrib   Name
+-------- -------- -------- ----------- -------- ----
+    5164      n/a 00:26:50 15-oct-1996 ----rwed "xpkBLZW.library"
+    4336      n/a 00:26:50 15-oct-1996 ----rwed "xpkCBR0.library"
+    4148      n/a 00:26:50 15-oct-1996 ----rwed "xpkCRM2.library"
+    4160      n/a 00:26:51 15-oct-1996 ----rwed "xpkCRMS.library"
+    9592      n/a 00:26:51 15-oct-1996 ----rwed "xpkDHUF.library"
+    3996      n/a 00:26:50 15-oct-1996 ----rwed "xpkDLTA.library"
+    4252      n/a 00:26:51 15-oct-1996 ----rwed "xpkENCO.library"
+    5164      n/a 00:26:51 15-oct-1996 ----rwed "xpkFAST.library"
+    5796      n/a 00:26:50 15-oct-1996 ----rwed "xpkFEAL.library"
+   46608    12386 Merged
+    4964      n/a 00:26:50 15-oct-1996 ----rwed "xpkHFMN.library"
+    5732      n/a 00:26:50 15-oct-1996 ----rwed "xpkHUFF.library"
+    3940      n/a 00:26:50 15-oct-1996 ----rwed "xpkIDEA.library"
+    7084      n/a 00:26:50 15-oct-1996 ----rwed "xpkIMPL.library"
+    5468      n/a 00:26:51 15-oct-1996 ----rwed "xpkLHLB.library"
+    2796      n/a 00:26:51 15-oct-1996 ----rwed "xpkMASH.library"
+    4076      n/a 00:26:50 15-oct-1996 ----rwed "xpkNONE.library"
+    6332      n/a 00:26:50 15-oct-1996 ----rwed "xpkNUKE.library"
+    4848      n/a 00:26:51 15-oct-1996 ----rwed "xpkPWPK.library"
+   45240    16752 Merged
+   10068      n/a 00:26:51 15-oct-1996 ----rwed "xpkRAKE.library"
+    4400      n/a 00:26:51 15-oct-1996 ----rwed "xpkRDCN.library"
+    3860      n/a 00:26:50 15-oct-1996 ----rwed "xpkRLEN.library"
+   12268      n/a 00:26:49 15-oct-1996 ----rwed "xpkSHRI.library"
+    4776      n/a 00:26:49 15-oct-1996 ----rwed "xpkSMPL.library"
+    5268      n/a 00:26:50 15-oct-1996 ----rwed "xpkSQSH.library"
+   40640    16056 Merged
+-------- -------- -------- ----------- -------- ----
+  132488    45194 24 files
