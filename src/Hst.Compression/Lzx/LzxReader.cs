@@ -49,7 +49,6 @@
 
             var entryOffset = stream.Position;
             
-            // actual = fread(archive_header, 1, 31, in_file);
             var archiveHeaderBytes = new byte[ArchiveHeaderSize];
             var bytesRead = await stream.ReadAsync(archiveHeaderBytes, 0, ArchiveHeaderSize);
 
@@ -65,7 +64,6 @@
                 throw new IOException("Failed to read archive header");
             }
 
-            //var sum = 0; /* reset CRC */
             var headerCrc = (archiveHeaderBytes[29] << 24) + (archiveHeaderBytes[28] << 16) + (archiveHeaderBytes[27] << 8) +
                       archiveHeaderBytes[26];
             archiveHeaderBytes[29] = 0; /* Must set the field to 0 before calculating the crc */
@@ -74,27 +72,23 @@
             archiveHeaderBytes[26] = 0;
             var sum = CrcHelper.crc_calc(archiveHeaderBytes, 0, ArchiveHeaderSize, 0);
 
-            // READ FILENAME
+            // read filename
             var filenameLength = archiveHeaderBytes[30]; /* filename length */
-            // actual = fread(header_filename, 1, temp, in_file);
             var headerFilenameBytes = new byte[filenameLength];
             if (await stream.ReadAsync(headerFilenameBytes, 0, filenameLength) != filenameLength)
             {
                 throw new IOException("Failed to read header filename");
             }
 
-            // READ COMMENT
-            //headerFilenameBytes[filenameLength] = 0;
+            // read comment
             sum = CrcHelper.crc_calc(headerFilenameBytes, 0, filenameLength, sum);
             var commentLength = archiveHeaderBytes[14]; /* comment length */
             var headerCommentBytes = new byte[commentLength];
-            // actual = fread(header_comment, 1, filenameLength, in_file);
             if (await stream.ReadAsync(headerCommentBytes, 0, commentLength) != commentLength)
             {
                 throw new IOException("Failed to read header comment");
             }
 
-            //headerCommentBytes[commentLength] = 0;
             sum = CrcHelper.crc_calc(headerCommentBytes, 0, commentLength, sum);
 
             var filename = lzxOptions.Encoding.GetString(headerFilenameBytes);
@@ -105,12 +99,12 @@
                 throw new IOException($"Failed to read header, crc {sum} expected {headerCrc}");
             }
 
-            var attributes = archiveHeaderBytes[0]; /* file protection modes */
-            var unpack_size = (archiveHeaderBytes[5] << 24) + (archiveHeaderBytes[4] << 16) +
+            var attributes = (AttributesEnum)archiveHeaderBytes[0]; /* file protection modes */
+            var unpackSize = (archiveHeaderBytes[5] << 24) + (archiveHeaderBytes[4] << 16) +
                               (archiveHeaderBytes[3] << 8) + archiveHeaderBytes[2]; /* unpack size */
-            var pack_size = (archiveHeaderBytes[9] << 24) + (archiveHeaderBytes[8] << 16) +
+            var packSize = (archiveHeaderBytes[9] << 24) + (archiveHeaderBytes[8] << 16) +
                             (archiveHeaderBytes[7] << 8) + archiveHeaderBytes[6]; /* packed size */
-            var pack_mode = archiveHeaderBytes[11]; /* pack mode */
+            var packMode = archiveHeaderBytes[11]; /* pack mode */
             var dataCrc = (archiveHeaderBytes[25] << 24) + (archiveHeaderBytes[24] << 16) +
                           (archiveHeaderBytes[23] << 8) + archiveHeaderBytes[22]; /* data crc */
             var date = (archiveHeaderBytes[18] << 24) + (archiveHeaderBytes[19] << 16) + (archiveHeaderBytes[20] << 8) +
@@ -122,26 +116,16 @@
             var minute = (date >> 6) & 63;
             var second = date & 63;
 
-            //  (attributes & 32) ? 'h' : '-',
-            //  (attributes & 64) ? 's' : '-',
-            //  (attributes & 128) ? 'p' : '-',
-            //  (attributes & 16) ? 'a' : '-',
-            //  (attributes & 1) ? 'r' : '-',
-            //  (attributes & 2) ? 'w' : '-',
-            //  (attributes & 8) ? 'e' : '-',
-            //  (attributes & 4) ? 'd' : '-');
-
             var dataOffset = stream.Position;
-            if (!extract && pack_size > 0) /* seek past the packed data */
+            if (!extract && packSize > 0) /* seek past the packed data */
             {
-                //merge_size = 0;
-                if (stream.Seek(pack_size, SeekOrigin.Current) == 0)
+                if (stream.Seek(packSize, SeekOrigin.Current) == 0)
                 {
                     throw new IOException("Seek pack size failed");
                 }
             }
 
-            var isMergedEntry = (archiveHeaderBytes[12] & 1) == 1 && pack_size > 0;
+            var isMergedEntry = (archiveHeaderBytes[12] & 1) == 1 && packSize > 0;
             
             return new LzxEntry
             {
@@ -151,9 +135,9 @@
                 Name = filename,
                 Comment = comment,
                 Date = new DateTime(year, month, day, hour, minute, second, DateTimeKind.Local),
-                PackMode = (PackModeEnum)pack_mode,
-                PackedSize = pack_size,
-                UnpackedSize = unpack_size,
+                PackMode = (PackModeEnum)packMode,
+                PackedSize = packSize,
+                UnpackedSize = unpackSize,
                 Attributes = attributes,
                 IsMergedEntry = isMergedEntry
             };

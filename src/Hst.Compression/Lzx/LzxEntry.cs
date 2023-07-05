@@ -12,7 +12,7 @@
         public PackModeEnum PackMode { get; set; }
         public int PackedSize { get; set; }
         public int UnpackedSize { get; set; }
-        public int Attributes { get; set; }
+        public AttributesEnum Attributes { get; set; }
         public int DataCrc { get; set; }
         public bool IsMergedEntry { get; set; }
     }

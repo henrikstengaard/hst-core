@@ -150,5 +150,6 @@
       <None Update="TestData\Lzx\xpkSQSH.library">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
+      <None Remove="TestData\Lzx\eme_files.txt" />
     </ItemGroup>
 </Project>

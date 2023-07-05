@@ -10,38 +10,47 @@ using Xunit;
 
 public class GivenLzxArchive
 {
-    private static readonly LzxEntry[] ExpectedEntries = {
-        CreateEntry("xpkBLZW.library", 5164, 0, new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local)),
-        CreateEntry("xpkCBR0.library", 4336, 0, new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local)),
-        CreateEntry("xpkCRM2.library", 4148, 0, new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local)),
-        CreateEntry("xpkCRMS.library", 4160, 0, new DateTime(1996, 10, 15, 0, 26, 51, DateTimeKind.Local)),
-        CreateEntry("xpkDHUF.library", 9592, 0, new DateTime(1996, 10, 15, 0, 26, 51, DateTimeKind.Local)),
-        CreateEntry("xpkDLTA.library", 3996, 0, new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local)),
-        CreateEntry("xpkENCO.library", 4252, 0, new DateTime(1996, 10, 15, 0, 26, 51, DateTimeKind.Local)),
-        CreateEntry("xpkFAST.library", 5164, 0, new DateTime(1996, 10, 15, 0, 26, 51, DateTimeKind.Local)),
-        CreateEntry("xpkFEAL.library", 5796, 12386, new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local)),
-        CreateEntry("xpkHFMN.library", 4964, 0, new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local)),
-        CreateEntry("xpkHUFF.library", 5732, 0, new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local)),
-        CreateEntry("xpkIDEA.library", 3940, 0, new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local)),
-        CreateEntry("xpkIMPL.library", 7084, 0, new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local)),
-        CreateEntry("xpkLHLB.library", 5468, 0, new DateTime(1996, 10, 15, 0, 26, 51, DateTimeKind.Local)),
-        CreateEntry("xpkMASH.library", 2796, 0, new DateTime(1996, 10, 15, 0, 26, 51, DateTimeKind.Local)),
-        CreateEntry("xpkNONE.library", 4076, 0, new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local)),
-        CreateEntry("xpkNUKE.library", 6332, 0, new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local)),
-        CreateEntry("xpkPWPK.library", 4848, 16752, new DateTime(1996, 10, 15, 0, 26, 51, DateTimeKind.Local)),
-        CreateEntry("xpkRAKE.library", 10068, 0, new DateTime(1996, 10, 15, 0, 26, 51, DateTimeKind.Local)),
-        CreateEntry("xpkRDCN.library", 4400, 0, new DateTime(1996, 10, 15, 0, 26, 51, DateTimeKind.Local)),
-        CreateEntry("xpkRLEN.library", 3860, 0, new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local)),
-        CreateEntry("xpkSHRI.library", 12268, 0, new DateTime(1996, 10, 15, 0, 26, 49, DateTimeKind.Local)),
-        CreateEntry("xpkSMPL.library", 4776, 0, new DateTime(1996, 10, 15, 0, 26, 49, DateTimeKind.Local)),
-        CreateEntry("xpkSQSH.library", 5268, 16056, new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local))
+    private static readonly AttributesEnum Attributes =
+        AttributesEnum.Read | AttributesEnum.Write | AttributesEnum.Executable | AttributesEnum.Delete;
+
+    private static readonly LzxEntry[] ExpectedEntries =
+    {
+        CreateEntry("xpkBLZW.library", Attributes, 5164, 0, new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local)),
+        CreateEntry("xpkCBR0.library", Attributes, 4336, 0, new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local)),
+        CreateEntry("xpkCRM2.library", Attributes, 4148, 0, new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local)),
+        CreateEntry("xpkCRMS.library", Attributes, 4160, 0, new DateTime(1996, 10, 15, 0, 26, 51, DateTimeKind.Local)),
+        CreateEntry("xpkDHUF.library", Attributes, 9592, 0, new DateTime(1996, 10, 15, 0, 26, 51, DateTimeKind.Local)),
+        CreateEntry("xpkDLTA.library", Attributes, 3996, 0, new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local)),
+        CreateEntry("xpkENCO.library", Attributes, 4252, 0, new DateTime(1996, 10, 15, 0, 26, 51, DateTimeKind.Local)),
+        CreateEntry("xpkFAST.library", Attributes, 5164, 0, new DateTime(1996, 10, 15, 0, 26, 51, DateTimeKind.Local)),
+        CreateEntry("xpkFEAL.library", Attributes, 5796, 12386,
+            new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local)),
+        CreateEntry("xpkHFMN.library", Attributes, 4964, 0, new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local)),
+        CreateEntry("xpkHUFF.library", Attributes, 5732, 0, new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local)),
+        CreateEntry("xpkIDEA.library", Attributes, 3940, 0, new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local)),
+        CreateEntry("xpkIMPL.library", Attributes, 7084, 0, new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local)),
+        CreateEntry("xpkLHLB.library", Attributes, 5468, 0, new DateTime(1996, 10, 15, 0, 26, 51, DateTimeKind.Local)),
+        CreateEntry("xpkMASH.library", Attributes, 2796, 0, new DateTime(1996, 10, 15, 0, 26, 51, DateTimeKind.Local)),
+        CreateEntry("xpkNONE.library", Attributes, 4076, 0, new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local)),
+        CreateEntry("xpkNUKE.library", Attributes, 6332, 0, new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local)),
+        CreateEntry("xpkPWPK.library", Attributes, 4848, 16752,
+            new DateTime(1996, 10, 15, 0, 26, 51, DateTimeKind.Local)),
+        CreateEntry("xpkRAKE.library", Attributes, 10068, 0, new DateTime(1996, 10, 15, 0, 26, 51, DateTimeKind.Local)),
+        CreateEntry("xpkRDCN.library", Attributes, 4400, 0, new DateTime(1996, 10, 15, 0, 26, 51, DateTimeKind.Local)),
+        CreateEntry("xpkRLEN.library", Attributes, 3860, 0, new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local)),
+        CreateEntry("xpkSHRI.library", Attributes, 12268, 0, new DateTime(1996, 10, 15, 0, 26, 49, DateTimeKind.Local)),
+        CreateEntry("xpkSMPL.library", Attributes, 4776, 0, new DateTime(1996, 10, 15, 0, 26, 49, DateTimeKind.Local)),
+        CreateEntry("xpkSQSH.library", Attributes, 5268, 16056,
+            new DateTime(1996, 10, 15, 0, 26, 50, DateTimeKind.Local))
     };
 
-    private static LzxEntry CreateEntry(string name, int unpackedSize, int packedSize, DateTime date)
+    private static LzxEntry CreateEntry(string name, AttributesEnum attributes, int unpackedSize, int packedSize,
+        DateTime date)
     {
         return new LzxEntry
         {
             Name = name,
+            Attributes = attributes,
             UnpackedSize = unpackedSize,
             PackedSize = packedSize,
             Date = date
@@ -54,12 +63,13 @@ public class GivenLzxArchive
         for (var i = 0; i < expectedEntries.Count; i++)
         {
             Assert.Equal(expectedEntries[i].Name, actualEntries[i].Name);
+            Assert.Equal(expectedEntries[i].Attributes, actualEntries[i].Attributes);
             Assert.Equal(expectedEntries[i].UnpackedSize, actualEntries[i].UnpackedSize);
             Assert.Equal(expectedEntries[i].PackedSize, actualEntries[i].PackedSize);
             Assert.Equal(expectedEntries[i].Date, actualEntries[i].Date);
         }
     }
-    
+
     [Fact]
     public async Task WhenReadEntriesFromLzxArchiveThenEntriesAreReturned()
     {
@@ -70,11 +80,11 @@ public class GivenLzxArchive
 
         // act - read entries
         var entries = (await lzxArchive.Entries()).ToList();
-        
+
         // assert - lzx archive contains expected entries
         AssertEntries(ExpectedEntries, entries);
     }
-    
+
     [Fact]
     public async Task WhenExtractEntriesFromLzxArchiveThenEntriesBytesMatch()
     {
@@ -88,7 +98,7 @@ public class GivenLzxArchive
         while (await lzxArchive.Next() is { } entry)
         {
             entries.Add(entry);
-            
+
             // act - extract entry bytes
             byte[] actualBytes;
             using (var memoryStream = new MemoryStream())
@@ -102,11 +112,11 @@ public class GivenLzxArchive
             Assert.Equal(expectedBytes.Length, actualBytes.Length);
             Assert.Equal(expectedBytes, actualBytes);
         }
-        
+
         // assert - lzx archive contains expected entries
         AssertEntries(ExpectedEntries, entries);
     }
-    
+
     [Fact]
     public async Task WhenIterateWithoutExtractingEntriesFromLzxArchiveThenEntriesMatch()
     {
@@ -121,7 +131,7 @@ public class GivenLzxArchive
         {
             entries.Add(entry);
         }
-        
+
         // assert - lzx archive contains expected entries
         AssertEntries(ExpectedEntries, entries);
     }
