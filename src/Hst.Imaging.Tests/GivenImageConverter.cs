@@ -25,6 +25,7 @@ public class GivenImageConverter : ImageTestBase
         var convertedImage = ImageConverter.To8Bpp(expectedImage);
 
         // assert - expected and converted image match
+        Assert.Equal(8, convertedImage.BitsPerPixel);
         AssertEqual(expectedImage, convertedImage);
     }
     
@@ -38,11 +39,15 @@ public class GivenImageConverter : ImageTestBase
         var convertedImage = ImageConverter.To8Bpp(expectedImage);
 
         // assert - expected and converted image match
+        Assert.Equal(8, convertedImage.BitsPerPixel);
         AssertEqual(expectedImage, convertedImage);
     }
 
     private void AssertEqual(Image expectedImage, Image convertedImage)
     {
+        Assert.Equal(expectedImage.Width, convertedImage.Width);
+        Assert.Equal(expectedImage.Height, convertedImage.Height);
+    
         var expectedImageIterator = new ImagePixelDataIterator(expectedImage);
         var convertedImageIterator = new ImagePixelDataIterator(convertedImage);
 
