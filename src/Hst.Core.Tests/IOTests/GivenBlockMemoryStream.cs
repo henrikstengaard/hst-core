@@ -1,13 +1,14 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
+using Hst.Core.Extensions;
 using Hst.Core.IO;
-using NuGet.Frameworks;
 using Xunit;
 
 namespace Hst.Core.Tests.IOTests;
 
-public class GivenBlockMemoryStreamWithBlockSizeOf512Bytes
+public class GivenBlockMemoryStream
 {
     [Fact]
     public void WhenRead100BytesThenDataIsRead()
@@ -274,5 +275,189 @@ public class GivenBlockMemoryStreamWithBlockSizeOf512Bytes
         // assert - 100 bytes was read and all bytes are 1
         Assert.Equal(100, bytesRead);
         Assert.True(buffer.All(x => x == 1));
+    }
+    
+    [Fact]
+    public void WhenWriteDataWithZerosThenBlockIsNotWritten()
+    {
+        // arrange - create block bytes to write with zeroes
+        var blockBytes = new byte[512];
+
+        // arrange - create block memory stream and write block bytes
+        var stream = new BlockMemoryStream();
+        stream.Write(blockBytes, 0, blockBytes.Length);
+
+        // assert - stream has no blocks written
+        Assert.Empty(stream.Blocks);
+        
+        // assert - stream length is increased by block bytes written
+        Assert.Equal(512, stream.Length);
+    }
+    
+    [Fact]
+    public void WhenWriteDataWithZerosAtOffset1024ThenBlockIsNotWritten()
+    {
+        // arrange - create block bytes to write with zeroes
+        var blockBytes = new byte[512];
+
+        // arrange - create block memory stream and write block bytes
+        var stream = new BlockMemoryStream();
+        stream.Position = 1024;
+        stream.Write(blockBytes, 0, blockBytes.Length);
+
+        // assert - stream has no blocks written
+        Assert.Empty(stream.Blocks);
+        
+        // assert - stream length is increased by block bytes written
+        Assert.Equal(1536, stream.Length);
+    }
+    
+    [Fact]
+    public void WhenOverwritingDataWithZerosThenBlockIsRemoved()
+    {
+        // arrange - create block bytes to write with 1 at offset 0
+        var blockBytes = new byte[512];
+        blockBytes[0] = 1;
+
+        // arrange - create block memory stream and write block bytes
+        var stream = new BlockMemoryStream();
+        stream.Write(blockBytes, 0, blockBytes.Length);
+
+        // assert - stream contains 1 block at offset 0
+        Assert.Single(stream.Blocks);
+        Assert.True(stream.Blocks.ContainsKey(0));
+        
+        // arrange - fill block bytes with zeroes
+        Array.Fill<byte>(blockBytes, 0);
+
+        // act - overwrite block bytes at offset 0
+        stream.Position = 0;        
+        stream.Write(blockBytes, 0, blockBytes.Length);
+        
+        // assert - stream has no blocks written
+        Assert.Empty(stream.Blocks);
+        
+        // assert - stream length is increased by block bytes written
+        Assert.Equal(512, stream.Length);
+    }
+    
+    [Fact]
+    public async Task WhenWriteAndReadBlocksAtDifferentOffsetsThenDataIsIdentical()
+    {
+        // arrange - block bytes with data
+        var blockBytes = new byte[1024];
+        Array.Fill<byte>(blockBytes, 1, 0, 512);
+        Array.Fill<byte>(blockBytes, 2, 512, 512);
+        
+        // act - create block memory stream and write block bytes at offset 4096
+        var stream = new BlockMemoryStream();
+        stream.Position = 4096;
+        await stream.WriteBytes(blockBytes);
+        
+        // assert - 2 blocks written at offset 4096 and 4608
+        Assert.Equal(2, stream.Blocks.Count);
+        Assert.Equal(new long[]{ 4096, 4608 }, stream.Blocks.Keys);
+        
+        // assert - stream length is 5120
+        Assert.Equal(5120, stream.Length);
+
+        // arrange - create expected bytes from offset 2048
+        var expectedBytes = new byte[2048].Concat(blockBytes).ToArray();
+        
+        // act - read 4096 bytes from offset 2048
+        stream.Position = 2048;
+        var actualBytes = await stream.ReadBytes(4096);
+        
+        // assert - bytes are equal
+        Assert.Equal(expectedBytes.Length, actualBytes.Length);
+        Assert.Equal(expectedBytes, actualBytes);
+    }
+
+    [Fact]
+    public async Task WhenReadZeroBytesWithBufferThenBufferIsOverwrittenWithZeroBytes()
+    {
+        // arrange - buffer
+        var buffer = new byte[1024];
+        
+        // arrange - create block memory stream and write buffer with zero bytes
+        var stream = new BlockMemoryStream();
+        await stream.WriteBytes(buffer);
+        
+        // arrange - fill buffer with 1 values
+        Array.Fill<byte>(buffer, 1);
+
+        // act - read buffer from offset 0
+        stream.Position = 0;
+        var bytesRead = stream.Read(buffer, 0, buffer.Length);
+
+        // assert - buffer contains zero bytes
+        Assert.Equal(1024, bytesRead);
+        var expectedBytes = new byte[1024];
+        Assert.Equal(expectedBytes.Length, buffer.Length);
+        Assert.Equal(expectedBytes, buffer);
+    }
+    
+    [Fact]
+    public async Task WhenReadUntilEndWithSizeNotDividableBy512ThenBytesAreEqual()
+    {
+        // arrange - data with 1000 bytes of value 1
+        var data = new byte[1000];
+        Array.Fill<byte>(data, 1, 0, 488);
+        Array.Fill<byte>(data, 2, 488, 512);
+        
+        // arrange - create block memory stream and write data
+        var stream = new BlockMemoryStream();
+        await stream.WriteBytes(data);
+        
+        // act - read buffer from offset 488
+        stream.Position = 488;
+        var buffer = new byte[512];
+        var bytesRead = stream.Read(buffer, 0, buffer.Length);
+
+        // assert - 512 bytes was read
+        Assert.Equal(512, bytesRead);
+        
+        // assert - buffer is equal to expected bytes
+        var expectedBytes = new byte[512];
+        Array.Fill<byte>(expectedBytes, 2);
+        Assert.Equal(expectedBytes.Length, buffer.Length);
+        Assert.Equal(expectedBytes, buffer);
+    }
+
+    [Fact]
+    public async Task WhenStreamIs512BytesAndSetLengthZeroThenAllBlocksAreRemoved()
+    {
+        // arrange - data with 512 bytes of value 1
+        var data = new byte[512];
+        Array.Fill<byte>(data, 1);
+        
+        // arrange - create block memory stream and write data
+        var stream = new BlockMemoryStream();
+        await stream.WriteBytes(data);
+
+        // act - set stream length to 0 bytes
+        stream.SetLength(0);
+        
+        // assert - all blocks are removed
+        Assert.Empty(stream.Blocks);
+    }
+    
+    [Fact]
+    public async Task WhenStreamIs1024BytesAndSetLength512ThenBlockIsRemoved()
+    {
+        // arrange - data with 512 bytes of value 1
+        var data = new byte[1024];
+        Array.Fill<byte>(data, 1);
+        
+        // arrange - create block memory stream and write data
+        var stream = new BlockMemoryStream();
+        await stream.WriteBytes(data);
+
+        // act - set stream length to 0 bytes
+        stream.SetLength(512);
+        
+        // assert - 1 block exists at offset 0
+        Assert.Single(stream.Blocks);
+        Assert.True(stream.Blocks.ContainsKey(0));
     }
 }
