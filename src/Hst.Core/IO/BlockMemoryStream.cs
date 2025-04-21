@@ -96,10 +96,11 @@ namespace Hst.Core.IO
             switch (origin)
             {
                 case SeekOrigin.End:
-                    position = length;
+                    var newPosition = length - offset;
+                    position = newPosition < 0 ? 0 : newPosition;
                     break;
                 case SeekOrigin.Begin:
-                    position = offset;
+                    position = offset < 0 ? 0 : offset;
                     break;
                 case SeekOrigin.Current:
                     position += offset;
@@ -192,7 +193,7 @@ namespace Hst.Core.IO
         public override long Position
         {
             get => position;
-            set => position = value;
+            set => position = value < 0 ? 0 : value;
         }
 
         public async Task WriteTo(Stream stream)

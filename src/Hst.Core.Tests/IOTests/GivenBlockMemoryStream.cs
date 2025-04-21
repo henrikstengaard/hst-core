@@ -460,4 +460,106 @@ public class GivenBlockMemoryStream
         Assert.Single(stream.Blocks);
         Assert.True(stream.Blocks.ContainsKey(0));
     }
+
+    [Fact]
+    public async Task When_PositionIsSetNegative_Then_PositionIsSetToZero()
+    {
+        // arrange - data with 512 bytes of value 1
+        var data = new byte[1024];
+        Array.Fill<byte>(data, 1);
+        
+        // arrange - create block memory stream and write data
+        var stream = new BlockMemoryStream();
+        await stream.WriteBytes(data);
+        
+        // act - seek to offset -10000
+        stream.Position = -10000;
+
+        // assert - stream position is 0
+        Assert.Equal(0, stream.Position);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(10)]
+    [InlineData(400)]
+    public async Task When_SeekOffsetBegin_Then_PositionIsOffset(long offset)
+    {
+        // arrange - data with 512 bytes of value 1
+        var data = new byte[1024];
+        Array.Fill<byte>(data, 1);
+        
+        // arrange - create block memory stream and write data
+        var stream = new BlockMemoryStream();
+        await stream.WriteBytes(data);
+        
+        // act - seek to offset from start
+        stream.Seek(offset, SeekOrigin.Begin);
+
+        // assert - stream position is offset
+        Assert.Equal(offset, stream.Position);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(10)]
+    [InlineData(400)]
+    public async Task When_SeekOffsetCurrent_Then_PositionIsIncreasedOffset(long offset)
+    {
+        // arrange - data with 512 bytes of value 1
+        var data = new byte[1024];
+        Array.Fill<byte>(data, 1);
+        
+        // arrange - create block memory stream and write data
+        var stream = new BlockMemoryStream();
+        await stream.WriteBytes(data);
+        
+        // act - seek to offset from current position
+        stream.Position = 100;
+        stream.Seek(offset, SeekOrigin.Current);
+
+        // assert - stream position is increased by offset
+        Assert.Equal(100 + offset, stream.Position);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(10)]
+    [InlineData(400)]
+    public async Task When_SeekOffsetEnd_Then_PositionIsLengthMinusOffset(long offset)
+    {
+        // arrange - data with 512 bytes of value 1
+        var data = new byte[1024];
+        Array.Fill<byte>(data, 1);
+        
+        // arrange - create block memory stream and write data
+        var stream = new BlockMemoryStream();
+        await stream.WriteBytes(data);
+        
+        // act - seek to offset from end
+        stream.Seek(offset, SeekOrigin.End);
+
+        // assert - stream position is length - offset
+        Assert.Equal(1024 - offset, stream.Position);
+    }
+    
+    [Fact]
+    public async Task When_WritingDataAtPositionGreaterThanLength_Then_PositionAndLengthAreUpdated()
+    {
+        // arrange - data with 512 bytes of value 1
+        var data = new byte[1024];
+        Array.Fill<byte>(data, 1);
+
+        // arrange - create block memory stream and write data
+        var stream = new BlockMemoryStream();
+        await stream.WriteBytes(data);
+        
+        // act - seek to offset 10000 and write data
+        stream.Position = 10000;
+        await stream.WriteBytes(data);
+
+        // assert - stream position and length is 11024
+        Assert.Equal(11024, stream.Position);
+        Assert.Equal(11024, stream.Length);
+    }
 }
