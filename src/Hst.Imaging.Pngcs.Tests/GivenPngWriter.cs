@@ -1,7 +1,6 @@
 ﻿namespace Hst.Imaging.Pngcs.Tests
 {
     using System.IO;
-    using System.Linq;
     using System.Threading.Tasks;
     using Hjg.Pngcs;
     using Imaging.Tests;
@@ -61,6 +60,60 @@
             AssertImageEqual(image, new MemoryStream(pngStream.ToArray()));
         }
 
+        [Fact]
+        public void When_Changing8BppImageTransparentColorTo0_Then_Color0IsTransparent()
+        {
+            // arrange - define transparent color index and alpha value
+            const int transparentAlphaValue = 0;
+            const int transparentColorPaletteIndex = 0;
+            
+            // arrange - create 8 bits per pixel image
+            var image = Create8BppImage(false);
+
+            // arrange - set transparent color to index 0
+            image.Palette.TransparentColor = transparentColorPaletteIndex;
+
+            // act - write image to png stream
+            using var pngStream = new MemoryStream();
+            PngWriter.Write(pngStream, image);
+            
+            // assert - color 0 is transparent (alpha = 0)
+            var pngBytes = pngStream.ToArray();
+            var pngReader = new PngReader(new MemoryStream(pngBytes));
+            var transparencyChunk = pngReader.GetMetadata().GetTRNS();
+            Assert.Equal(transparentAlphaValue, transparencyChunk.GetPalletteAlpha()[transparentColorPaletteIndex]);
+
+            // assert - png stream is equal to image
+            AssertImageEqual(image, new MemoryStream(pngBytes));
+        }
+
+        [Fact]
+        public void When_Changing8BppImageTransparentColorTo1_Then_Color1IsTransparent()
+        {
+            // arrange - define transparent color index and alpha value
+            const int transparentAlphaValue = 0;
+            const int transparentColorPaletteIndex = 1;
+            
+            // arrange - create 8 bits per pixel image
+            var image = Create8BppImage(false);
+
+            // arrange - set transparent color to index 0
+            image.Palette.TransparentColor = transparentColorPaletteIndex;
+
+            // act - write image to png stream
+            using var pngStream = new MemoryStream();
+            PngWriter.Write(pngStream, image);
+            
+            // assert - color 1 is transparent
+            var pngBytes = pngStream.ToArray();
+            var pngReader = new PngReader(new MemoryStream(pngBytes));
+            var transparencyChunk = pngReader.GetMetadata().GetTRNS();
+            Assert.Equal(transparentAlphaValue, transparencyChunk.GetPalletteAlpha()[transparentColorPaletteIndex]);
+
+            // assert - png stream is equal to image
+            AssertImageEqual(image, new MemoryStream(pngBytes));
+        }
+
         private void AssertImageEqual(Image expectedImage, Stream pngStream)
         {
             var pngReader = new PngReader(pngStream);
@@ -84,8 +137,14 @@
                     case 2:
                     case 4:
                     case 8:
+                        var expectedAlphaEntries = new int[expectedImage.Palette.Colors.Count];
+                        for (var i = 0; i < expectedImage.Palette.Colors.Count; i++)
+                        {
+                            expectedAlphaEntries[i] = 255;
+                        }
+                        expectedAlphaEntries[expectedImage.Palette.TransparentColor] = 0;
                         var alphaEntries = transparencyChunk.GetPalletteAlpha();
-                        Assert.Equal(expectedImage.Palette.Colors.Select(x => x.A), alphaEntries);
+                        Assert.Equal(expectedAlphaEntries, alphaEntries);
                         break;
                     case 24:
                         var transparentRgb = transparencyChunk.GetRGB();

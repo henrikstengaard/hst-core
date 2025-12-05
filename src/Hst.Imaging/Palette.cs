@@ -35,6 +35,7 @@
             this.maxColors = maxColors;
             this.colors = new List<Color>();
             Colors = new ReadOnlyCollection<Color>(this.colors);
+            TransparentColor = -1;
         }
         
         /// <summary>
@@ -52,6 +53,7 @@
             
 
             this.maxColors = this.colors.Count;
+            TransparentColor = -1;
             Colors = new ReadOnlyCollection<Color>(this.colors);
         }
 

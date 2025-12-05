@@ -44,8 +44,8 @@
             // add red color (color 1)
             image.Palette.AddColor(CreateRedColor());
             
-            // set color 0 (black) as transparent color
-            image.Palette.TransparentColor = 0;
+            // set color 0 (black) as transparent color, if is transparent
+            image.Palette.TransparentColor = isTransparent ? 0 : -1;
         }
         
         protected Image Create4BppImage(bool isTransparent)

@@ -1,7 +1,6 @@
 ﻿namespace Hst.Imaging.Pngcs
 {
     using System.IO;
-    using System.Linq;
     using Hjg.Pngcs;
     using Hjg.Pngcs.Chunks;
 
@@ -69,19 +68,53 @@
 
         private static void CreateTransparencyChunk(Hjg.Pngcs.PngWriter pngWriter, Image image)
         {
-            var transparencyChunk = new PngChunkTRNS(pngWriter.ImgInfo);
-
             switch (image.BitsPerPixel)
             {
                 case 8:
-                    transparencyChunk.setIndexEntryAsTransparent(image.Palette.TransparentColor);
-                    transparencyChunk.SetPalletteAlpha(image.Palette.Colors.Select(x => x.A).ToArray());
+                    Create8BppTransparencyChunk(pngWriter, image);
                     break;
                 case 24:
-                    transparencyChunk.SetRGB(image.TransparentColor.R, image.TransparentColor.G,
-                        image.TransparentColor.B);
+                    Create24BppTransparencyChunk(pngWriter, image);
                     break;
             }
+        }
+
+        private static void Create8BppTransparencyChunk(Hjg.Pngcs.PngWriter pngWriter, Image image)
+        {
+            if (image.Palette == null ||
+                image.Palette.TransparentColor < 0 ||
+                image.Palette.TransparentColor >= image.Palette.Colors.Count)
+            {
+                return;
+            }
+            
+            var transparencyChunk = new PngChunkTRNS(pngWriter.ImgInfo);
+
+            // create palette alpha array
+            var paletteAlpha = new int[image.Palette.Colors.Count];
+            for (var i = 0; i < paletteAlpha.Length; i++)
+            {
+                paletteAlpha[i] = 255; // set all colors fully opaque
+            }
+            
+            // set transparent color alpha to 0 (fully transparent)
+            paletteAlpha[image.Palette.TransparentColor] = 0; 
+            
+            // set palette alpha in transparency chunk
+            transparencyChunk.SetPalletteAlpha(paletteAlpha);
+                    
+            pngWriter.GetChunksList().Queue(transparencyChunk);
+        }
+        
+        private static void Create24BppTransparencyChunk(Hjg.Pngcs.PngWriter pngWriter, Image image)
+        {
+            if (image.TransparentColor == null)
+            {
+                return;
+            }
+            
+            var transparencyChunk = new PngChunkTRNS(pngWriter.ImgInfo);
+            transparencyChunk.SetRGB(image.TransparentColor.R, image.TransparentColor.G, image.TransparentColor.B);
 
             pngWriter.GetChunksList().Queue(transparencyChunk);
         }
