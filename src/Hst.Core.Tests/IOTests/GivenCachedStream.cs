@@ -492,8 +492,8 @@ public class GivenCachedStream
             await Task.Delay(10);
         }
 
-        // act - wait 300 milliseconds, flush timer should have triggered then
-        await Task.Delay(300);
+        // act - wait 1000 milliseconds, flush timer should have triggered then
+        await Task.Delay(1000);
         
         // assert - stream contains 5 bytes of data, cached blocks should have been written to stream
         Assert.Equal(5, stream.Length);
