@@ -1,4 +1,6 @@
-﻿namespace Hst.Compression.Tests.Lha
+﻿using System.Text;
+
+namespace Hst.Compression.Tests.Lha
 {
     using System.IO;
     using System.Threading.Tasks;
@@ -8,8 +10,11 @@
     public class GivenLhExt
     {
         [Fact]
-        public async Task WhenExtractUncompressedLh0DataThenBytesAreEqual()
+        public void WhenExtractUncompressedLh0DataThenBytesAreEqual()
         {
+            // arrange - test data to uncompress
+            const string testData = "This is a test\n";
+            
             // arrange - lh0 uncompressed entry (bytes extracted from header end to next header)
             var header = new LzHeader
             {
@@ -20,7 +25,7 @@
                 HasCrc = true,
                 Crc = 17248
             };
-            var lh0CompressedBytes = await File.ReadAllBytesAsync(Path.Combine("TestData", "Lha", "test.txt.lh0.bin"));
+            var lh0CompressedBytes = Encoding.ASCII.GetBytes(testData);
             var input = new MemoryStream(lh0CompressedBytes);
             var output = new MemoryStream();
 
@@ -29,7 +34,7 @@
 
             // assert - compare uncompressed with expected bytes
             var uncompressedBytes = output.ToArray();
-            var expectedBytes = await File.ReadAllBytesAsync(Path.Combine("TestData", "Lha", "test.txt"));
+            var expectedBytes = Encoding.ASCII.GetBytes(testData);
             Assert.Equal(expectedBytes, uncompressedBytes);
         }
 
