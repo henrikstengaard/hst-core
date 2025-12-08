@@ -10,7 +10,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hst.Imaging.Tests", "Hst.Im
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GithubWorkflows", "GithubWorkflows", "{05CA85B6-4A53-44BB-B84A-06FA4AA7790F}"
 	ProjectSection(SolutionItems) = preProject
-		..\.github\workflows\dotnet.yml = ..\.github\workflows\dotnet.yml
+		..\.github\workflows\build-and-release.yml = ..\.github\workflows\build-and-release.yml
+		..\.github\workflows\build-and-test.yml = ..\.github\workflows\build-and-test.yml
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Properties", "Properties", "{A2365F37-2DF7-4475-A651-1859726F778A}"
