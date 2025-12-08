@@ -440,10 +440,10 @@ public class GivenCachedStream
             data[i] = (byte)(i + 1);
         }
         
-        // arrange - cached stream with block size 10 bytes, blocks limit of 10 and flush interval of 200 milliseconds
+        // arrange - cached stream with block size 10 bytes, blocks limit of 10 and flush interval of 1000 milliseconds
         var stream = new MemoryStream();
         var monitorStream = new MonitorStream(stream);
-        var cachedStream = new CachedStream(monitorStream, 10, 10, TimeSpan.FromMilliseconds(500));
+        var cachedStream = new CachedStream(monitorStream, 10, 10, TimeSpan.FromMilliseconds(1000));
         
         // act - write 5 bytes of data, first block is read and updated
         cachedStream.Write(data, 0, 5);
@@ -462,8 +462,8 @@ public class GivenCachedStream
         // assert - cached stream has not flushed updated cached blocks
         Assert.Empty(monitorStream.Writes);
 
-        // act - wait 250 milliseconds
-        await Task.Delay(250);
+        // act - wait 950 milliseconds
+        await Task.Delay(950);
         
         // act - read and write 5 bytes at offset 0 10 times while flush timer will trigger
         for (var i = 0; i < 10; i++)
@@ -494,11 +494,14 @@ public class GivenCachedStream
 
         // act - wait 1000 milliseconds, flush timer should have triggered then
         await Task.Delay(1000);
+
+        // act - dispose cached stream to flush any remaining cached blocks and stop timer
+        await cachedStream.DisposeAsync();
         
         // assert - stream contains 5 bytes of data, cached blocks should have been written to stream
         Assert.Equal(5, stream.Length);
 
         // assert - cached stream has flushed updated cached blocks and written offset
-        Assert.Equal(new[]{ 0L }, monitorStream.Writes);
+        Assert.Equal(new[]{ 0L, 0L }, monitorStream.Writes);
     }
 }

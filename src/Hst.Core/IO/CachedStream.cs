@@ -52,6 +52,7 @@
             base.Dispose(disposing);
             if (disposing)
             {
+                flushTimer.Stop();
                 Flush();
             }
         }
