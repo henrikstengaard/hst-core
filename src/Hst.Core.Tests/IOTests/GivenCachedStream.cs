@@ -39,11 +39,11 @@ public class GivenCachedStream
         }
         
         // assert - 1 offset have been read, offset 10
-        Assert.Equal(1, monitorStream.Reads.Count);
+        Assert.Single(monitorStream.Reads);
         Assert.Equal(new []{ 10L }, monitorStream.Reads.ToArray());
         
         // assert - no offsets have been written to
-        Assert.Equal(0, monitorStream.Writes.Count);
+        Assert.Empty(monitorStream.Writes);
     }
     
     [Fact]
@@ -75,7 +75,7 @@ public class GivenCachedStream
         Assert.Equal(new []{ 0L, 10L }, monitorStream.Reads.ToArray());
         
         // assert - no offsets have been written to
-        Assert.Equal(0, monitorStream.Writes.Count);
+        Assert.Empty(monitorStream.Writes);
     }
 
     [Fact]
@@ -107,7 +107,7 @@ public class GivenCachedStream
         Assert.Equal(new []{ 0L, 10L, 20L }, monitorStream.Reads.ToArray());
         
         // assert - no offsets have been written to
-        Assert.Equal(0, monitorStream.Writes.Count);
+        Assert.Empty(monitorStream.Writes);
     }
 
     [Fact]
@@ -139,7 +139,7 @@ public class GivenCachedStream
         Assert.Equal(new []{ 0L, 1048576L }, monitorStream.Reads.ToArray());
         
         // assert - no offsets have been written to
-        Assert.Equal(0, monitorStream.Writes.Count);
+        Assert.Empty(monitorStream.Writes);
     }
 
     [Fact]
@@ -167,11 +167,11 @@ public class GivenCachedStream
         Assert.Equal(data.Skip(1536).Take(512), buffer);
         
         // assert - 1 offset have been read, offset 0
-        Assert.Equal(1, monitorStream.Reads.Count);
+        Assert.Single(monitorStream.Reads);
         Assert.Equal(new []{ 0L }, monitorStream.Reads.ToArray());
         
         // assert - no offsets have been written to
-        Assert.Equal(0, monitorStream.Writes.Count);
+        Assert.Empty(monitorStream.Writes);
     }
     
     [Fact]
@@ -207,7 +207,7 @@ public class GivenCachedStream
         Assert.Equal(data, updatedData);
         
         // assert - 1 offsets have been written, offset 0
-        Assert.Equal(1, monitorStream.Writes.Count);
+        Assert.Single(monitorStream.Writes);
         Assert.Equal(new []{ 0L }, monitorStream.Writes.ToArray());
     }
 

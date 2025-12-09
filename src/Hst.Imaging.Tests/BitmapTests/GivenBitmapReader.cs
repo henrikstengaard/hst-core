@@ -45,7 +45,7 @@
             var image = BitmapReader.Read(stream);
             
             // assert - 24 bits per pixel image doesn't have any palette colors
-            Assert.Equal(0, image.Palette.Colors.Count);
+            Assert.Empty(image.Palette.Colors);
             
             // assert - image data matches expected image data
             Assert.Equal(expectedImage.PixelData, image.PixelData);
@@ -62,7 +62,7 @@
             var image = BitmapReader.Read(stream);
             
             // assert - 32 bits per pixel image doesn't have any palette colors
-            Assert.Equal(0, image.Palette.Colors.Count);
+            Assert.Empty(image.Palette.Colors);
             
             // assert - image data matches expected image data
             Assert.Equal(expectedImage.PixelData, image.PixelData);
