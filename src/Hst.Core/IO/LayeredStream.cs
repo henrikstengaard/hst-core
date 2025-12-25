@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Timer = System.Timers.Timer;
 
 namespace Hst.Core.IO
 {
@@ -15,6 +17,74 @@ namespace Hst.Core.IO
     /// </summary>
     public class LayeredStream : Stream
     {
+        public class LayerStatus
+        {
+            /// <summary>
+            /// Size of base stream
+            /// </summary>
+            public long Size { get; set; }
+
+            /// <summary>
+            /// Number of blocks in base stream
+            /// </summary>
+            public int Blocks { get; set; }
+
+            /// <summary>
+            /// Size of layer stream
+            /// </summary>
+            public long LayerSize { get; set; }
+            
+            /// <summary>
+            /// Number of allocated blocks in layer stream
+            /// </summary>
+            public int AllocatedBlocks { get; set; }
+
+            /// <summary>
+            /// Number of changed blocks in layer stream
+            /// </summary>
+            public int ChangedBlocks { get; set; }
+
+            /// <summary>
+            /// Size of changed blocks in layer stream
+            /// </summary>
+            public long ChangedLayerSize { get; set; }
+            
+            /// <summary>
+            /// Number of unchanged blocks in layer stream
+            /// </summary>
+            public int UnchangedBlocks { get; set; }
+
+            /// <summary>
+            /// Size of unchanged blocks in layer stream
+            /// </summary>
+            public long UnchangedLayerSize { get; set; }
+        }
+        
+        public class DataFlushedEventArgs : EventArgs
+        {
+            public DataFlushedEventArgs(double percentComplete, long bytesProcessed, long bytesRemaining, long bytesTotal,
+                TimeSpan timeElapsed, TimeSpan timeRemaining, TimeSpan timeTotal, long bytesPerSecond)
+            {
+                PercentComplete = percentComplete;
+                BytesProcessed = bytesProcessed;
+                BytesRemaining = bytesRemaining;
+                BytesTotal = bytesTotal;
+                TimeElapsed = timeElapsed;
+                TimeRemaining = timeRemaining;
+                TimeTotal = timeTotal;
+                BytesPerSecond = bytesPerSecond;
+            }
+
+            public readonly double PercentComplete;
+            public readonly long BytesProcessed;
+            public readonly long BytesRemaining;
+            public readonly long BytesTotal;
+            public readonly TimeSpan TimeElapsed;
+            public readonly TimeSpan TimeRemaining;
+            public readonly TimeSpan TimeTotal;
+            public readonly long BytesPerSecond;
+        }
+
         private class AllocatedBlock
         {
             /// <summary>
@@ -70,6 +140,8 @@ namespace Hst.Core.IO
         private const int LAYER_HEADER_SIZE = 4 + 4 + 8 + 4; // magic (4 bytes) + version (4 bytes) + size (8 bytes) + block size (8 bytes)
         private const int BLOCK_HEADER_SIZE = 8; // block number (8 bytes)
 
+        private readonly Timer _timer = new Timer();
+        private DataFlushedEventArgs _dataFlushedEventArgs;
         private readonly Stream _baseStream;
         private readonly Stream _layerStream;
         private readonly LayeredStreamOptions _options;
@@ -83,6 +155,8 @@ namespace Hst.Core.IO
         private long _nextAvailableBlockLayerOffset;
 
         public bool IsDisposed { get; private set; }
+
+        public event EventHandler<DataFlushedEventArgs> DataFlushed;
 
         /// <summary>
         /// Creates layered stream applying layer stream on top of base stream with default options.
@@ -112,9 +186,9 @@ namespace Hst.Core.IO
                 throw new ArgumentNullException(nameof(layerStream));
             }
             
-            if (!baseStream.CanRead || !baseStream.CanSeek || !baseStream.CanWrite)
+            if (!baseStream.CanRead || !baseStream.CanSeek)
             {
-                throw new ArgumentException("Base stream must support read, seek and write", nameof(baseStream));
+                throw new ArgumentException("Base stream must support read and seek", nameof(baseStream));
             }
 
             if (!layerStream.CanRead || !layerStream.CanSeek || !layerStream.CanWrite)
@@ -138,8 +212,57 @@ namespace Hst.Core.IO
             
             // set next available block layer offset after header and block allocation table
             _nextAvailableBlockLayerOffset = LAYER_HEADER_SIZE + blockAllocationTableSize;
-        }    
+            
+            _timer.Enabled = true;
+            _timer.Interval = 1000;
+            _timer.Elapsed += (sender, args) =>
+            {
+                if (_dataFlushedEventArgs == null)
+                {
+                    return;
+                }
+                DataFlushed?.Invoke(this, _dataFlushedEventArgs);
+            };
+            _dataFlushedEventArgs = null;
+        }
         
+        public LayerStatus GetLayerStatus()
+        {
+            var layerSize = 0L;
+            var changedBlocks = 0;
+            var changedLayerSize = 0L;
+            var unchangedBlocks = 0;
+            var unchangedLayerSize = 0L;
+            
+            foreach (var item in this._blockAllocationTable)
+            {
+                layerSize += item.Value.Size;
+                changedBlocks += item.Value.IsChanged ? 1 : 0;
+                changedLayerSize += item.Value.IsChanged ? item.Value.Size : 0;
+                unchangedBlocks += item.Value.IsChanged ? 0 : 1;
+                unchangedLayerSize += item.Value.IsChanged ? 0 : item.Value.Size;
+            }
+            
+            return new LayerStatus
+            {
+                Size = _size,
+                Blocks = _numberOfBlocks,
+                LayerSize = layerSize,
+                AllocatedBlocks = _blockAllocationTable.Count,
+                ChangedBlocks = changedBlocks,
+                ChangedLayerSize = changedLayerSize,
+                UnchangedBlocks = unchangedBlocks,
+                UnchangedLayerSize = unchangedLayerSize
+            };
+        }
+        
+        private void OnDataFlushed(double percentComplete, long bytesProcessed, long bytesRemaining, long bytesTotal,
+            TimeSpan timeElapsed, TimeSpan timeRemaining, TimeSpan timeTotal, long bytesPerSecond)
+        {
+            _dataFlushedEventArgs = new DataFlushedEventArgs(percentComplete, bytesProcessed, bytesRemaining,
+                bytesTotal, timeElapsed, timeRemaining, timeTotal, bytesPerSecond);
+        }
+
         protected override void Dispose(bool disposing)
         {
             if (IsDisposed)
@@ -304,21 +427,29 @@ namespace Hst.Core.IO
         /// <exception cref="IOException"></exception>
         public async Task FlushLayer(CancellationToken cancellationToken = default)
         {
-            if (!_isInitialized)
-            {
-                Initialize();
-            }
+            Initialize();
             
-            var allocatedBlocks = _blockAllocationTable.Values.ToList();
+            await _layerStream.FlushAsync(cancellationToken);
+            
+            if (!_baseStream.CanWrite)
+            {
+                return;
+            }
+
+            await _baseStream.FlushAsync(cancellationToken);
+
+            var stopwatch = new Stopwatch();
+            stopwatch.Start();
+            
+            var allocatedBlocks = _blockAllocationTable.Values.Where(block => block.IsChanged).ToList();
+
+            var bytesProcessed = 0L;
+            var bytesTotal = allocatedBlocks.Where(block => block.IsChanged).Sum(b => (long)b.Size);
+            OnDataFlushed(0, 0, bytesTotal, bytesTotal, 
+                TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero, 0);
         
             foreach (var allocatedBlock in allocatedBlocks)
             {
-                // skip unchanged allocated blocks
-                if (!allocatedBlock.IsChanged)
-                {
-                    continue;
-                }
-                
                 // seek to block offset in layer stream
                 _layerStream.Position = allocatedBlock.LayerOffset;
             
@@ -363,7 +494,31 @@ namespace Hst.Core.IO
                 allocatedBlock.IsChanged = false;
                 allocatedBlock.ReadCount = 0;
                 allocatedBlock.WriteCount = 0;
+
+                bytesProcessed += allocatedBlock.Size;
+                var bytesRemaining = bytesTotal == 0 ? 0 : bytesTotal - bytesProcessed;
+                var percentComplete = bytesTotal == 0 || bytesProcessed == 0 ? 0 : Math.Round((double)100 / bytesTotal * bytesProcessed, 1);
+                var timeElapsed = stopwatch.Elapsed;
+                var timeRemaining = bytesTotal == 0 ? TimeSpan.Zero : CalculateTimeRemaining(percentComplete, timeElapsed);
+                var timeTotal = bytesTotal == 0 ? TimeSpan.Zero : timeElapsed + timeRemaining;
+                var bytesPerSecond = Convert.ToInt64(bytesProcessed / timeElapsed.TotalSeconds);
+
+                OnDataFlushed(percentComplete, bytesProcessed, bytesRemaining, bytesTotal, timeElapsed, timeRemaining,
+                    timeTotal, bytesPerSecond);
             }
+            
+            stopwatch.Stop();
+            
+            OnDataFlushed(100, bytesProcessed, 0, bytesTotal, stopwatch.Elapsed,
+                TimeSpan.Zero, stopwatch.Elapsed, 0);
+        }
+        
+        private static TimeSpan CalculateTimeRemaining(double percentComplete, TimeSpan timeElapsed)
+        {
+            return percentComplete > 0
+                ? TimeSpan.FromMilliseconds(timeElapsed.TotalMilliseconds / percentComplete *
+                                            (100 - percentComplete))
+                : TimeSpan.Zero;
         }
 
         private AllocatedBlock ReadBlockFromBaseToLayer(long blockNumber)
@@ -515,6 +670,11 @@ namespace Hst.Core.IO
         
         public override void Write(byte[] buffer, int offset, int count)
         {
+            if (!_baseStream.CanWrite)
+            {
+                throw new IOException("Base stream doesn't support writing");
+            }
+
             Initialize();
             
             var blockNumber = CalculateBlockNumber;

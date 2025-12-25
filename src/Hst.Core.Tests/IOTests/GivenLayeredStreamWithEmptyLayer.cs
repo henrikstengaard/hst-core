@@ -98,6 +98,16 @@ public class GivenLayeredStreamWithEmptyLayer
         Array.Copy(_blockTestDataBytes, 0, expectedBlockBytes, BLOCK_HEADER_SIZE, BLOCK_SIZE); // block data
         Assert.Equal(expectedBlockBytes.Length, block0Bytes.Length);
         Assert.Equal(expectedBlockBytes, block0Bytes);
+
+        // assert layer status
+        var layerStatus = layeredStream.GetLayerStatus();
+        Assert.Equal(SIZE, layerStatus.Size);
+        Assert.Equal(BLOCK_SIZE, layerStatus.LayerSize);
+        Assert.Equal(1, layerStatus.AllocatedBlocks);
+        Assert.Equal(0, layerStatus.ChangedBlocks);
+        Assert.Equal(BLOCK_SIZE, layerStatus.ChangedLayerSize);
+        Assert.Equal(0, layerStatus.UnchangedBlocks);
+        Assert.Equal(0, layerStatus.UnchangedLayerSize);
     }
 
     [Theory]
