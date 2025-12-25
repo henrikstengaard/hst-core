@@ -105,9 +105,9 @@ public class GivenLayeredStreamWithEmptyLayer
         Assert.Equal(BLOCK_SIZE, layerStatus.LayerSize);
         Assert.Equal(1, layerStatus.AllocatedBlocks);
         Assert.Equal(0, layerStatus.ChangedBlocks);
-        Assert.Equal(BLOCK_SIZE, layerStatus.ChangedLayerSize);
-        Assert.Equal(0, layerStatus.UnchangedBlocks);
-        Assert.Equal(0, layerStatus.UnchangedLayerSize);
+        Assert.Equal(0, layerStatus.ChangedLayerSize);
+        Assert.Equal(1, layerStatus.UnchangedBlocks);
+        Assert.Equal(BLOCK_SIZE, layerStatus.UnchangedLayerSize);
     }
 
     [Theory]
