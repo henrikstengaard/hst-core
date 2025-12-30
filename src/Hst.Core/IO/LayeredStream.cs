@@ -215,14 +215,18 @@ namespace Hst.Core.IO
             
             _timer.Enabled = true;
             _timer.Interval = 1000;
-            _timer.Elapsed += (sender, args) =>
+            _timer.Elapsed += SendDataFlushed;
+            _dataFlushedEventArgs = null;
+        }
+
+        private void SendDataFlushed(object sender, EventArgs args)
+        {
+            if (_dataFlushedEventArgs == null)
             {
-                if (_dataFlushedEventArgs == null)
-                {
-                    return;
-                }
-                DataFlushed?.Invoke(this, _dataFlushedEventArgs);
-            };
+                return;
+            }
+
+            DataFlushed?.Invoke(this, _dataFlushedEventArgs);
             _dataFlushedEventArgs = null;
         }
         
@@ -261,6 +265,11 @@ namespace Hst.Core.IO
         {
             _dataFlushedEventArgs = new DataFlushedEventArgs(percentComplete, bytesProcessed, bytesRemaining,
                 bytesTotal, timeElapsed, timeRemaining, timeTotal, bytesPerSecond);
+            
+            if (percentComplete >= 100)
+            {
+                SendDataFlushed(this, EventArgs.Empty);
+            }
         }
 
         protected override void Dispose(bool disposing)
@@ -272,6 +281,10 @@ namespace Hst.Core.IO
         
             if (disposing)
             {
+                _timer.Elapsed -= SendDataFlushed;
+                _timer.Stop();
+                SendDataFlushed(this, EventArgs.Empty);
+
                 if (_options.FlushLayerOnDispose)
                 {
                     FlushLayer().GetAwaiter().GetResult();
@@ -436,15 +449,20 @@ namespace Hst.Core.IO
                 return;
             }
 
-            await _baseStream.FlushAsync(cancellationToken);
+            var allocatedBlocks = _blockAllocationTable.Values.Where(block => block.IsChanged).ToList();
 
+            if (allocatedBlocks.Count == 0)
+            {
+                return;
+            }
+            
             var stopwatch = new Stopwatch();
             stopwatch.Start();
             
-            var allocatedBlocks = _blockAllocationTable.Values.Where(block => block.IsChanged).ToList();
-
+            await _baseStream.FlushAsync(cancellationToken);
+            
             var bytesProcessed = 0L;
-            var bytesTotal = allocatedBlocks.Where(block => block.IsChanged).Sum(b => (long)b.Size);
+            var bytesTotal = allocatedBlocks.Sum(b => (long)b.Size);
             OnDataFlushed(0, 0, bytesTotal, bytesTotal, 
                 TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero, 0);
         

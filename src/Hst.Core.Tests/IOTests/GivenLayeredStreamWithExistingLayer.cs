@@ -240,6 +240,11 @@ public class GivenLayeredStreamWithExistingLayer
 
         // arrange - layered stream on top of base and layer streams
         await using var layeredStream = new LayeredStream(baseStream, layerStream, new LayeredStreamOptions{ BlockSize =  BLOCK_SIZE });
+        var bytesProcessed = 0L;
+        layeredStream.DataFlushed += (s, e) =>
+        {
+            bytesProcessed = e.BytesProcessed;
+        };
         
         // arrange - write layer header
         layerStream.Write(Encoding.UTF8.GetBytes("HSTL"), 0, 4);
@@ -272,6 +277,9 @@ public class GivenLayeredStreamWithExistingLayer
             await baseStream.ReadExactlyAsync(baseStreamBlockBytes, 0, BLOCK_SIZE);
             Assert.Equal(_blockTestDataBytes, baseStreamBlockBytes);
         }
+        
+        // assert - bytes processed is equal to size
+        Assert.Equal(SIZE, bytesProcessed);
     }
 
     [Fact]
@@ -286,6 +294,11 @@ public class GivenLayeredStreamWithExistingLayer
 
         // arrange - layered stream on top of base and layer streams
         await using var layeredStream = new LayeredStream(baseStream, layerStream, new LayeredStreamOptions{ BlockSize =  BLOCK_SIZE });
+        var bytesProcessed = 0L;
+        layeredStream.DataFlushed += (s, e) =>
+        {
+            bytesProcessed = e.BytesProcessed;
+        };
         
         // arrange - write layer header
         layerStream.Write(Encoding.UTF8.GetBytes("HSTL"), 0, 4);
@@ -316,6 +329,9 @@ public class GivenLayeredStreamWithExistingLayer
         await baseStream.ReadExactlyAsync(actualData, 0, SIZE);
         var expectedData = new byte[SIZE];
         Assert.Equal(expectedData, actualData);
+        
+        // assert - bytes processed is equal to 0
+        Assert.Equal(0, bytesProcessed);
     }
     
     [Fact]
