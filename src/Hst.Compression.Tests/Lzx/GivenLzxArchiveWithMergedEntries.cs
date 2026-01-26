@@ -8,8 +8,10 @@ using System.Threading.Tasks;
 using Compression.Lzx;
 using Xunit;
 
-public class GivenLzxArchive
+public class GivenLzxArchiveWithMergedEntries
 {
+    private readonly string _lzxPath = Path.Combine("TestData", "Lzx", "xpk_compress.lzx");
+    
     private static readonly AttributesEnum Attributes =
         AttributesEnum.Read | AttributesEnum.Write | AttributesEnum.Executable | AttributesEnum.Delete;
 
@@ -71,68 +73,122 @@ public class GivenLzxArchive
     }
 
     [Fact]
-    public async Task WhenReadEntriesFromLzxArchiveThenEntriesAreReturned()
+    public async Task When_ListingArchiveEntries_Then_EntriesAreReturned()
     {
-        // arrange - open lzx file
-        var path = Path.Combine("TestData", "Lzx", "xpk_compress.lzx");
-        await using var stream = File.OpenRead(path);
-        var lzxArchive = new LzxArchive(stream);
+        // arrange - paths
+        var lzxTempPath = $"{Guid.NewGuid()}.lzx";
 
-        // act - read entries
-        var entries = (await lzxArchive.Entries()).ToList();
+        try
+        {
+            // arrange - copy lzx test data to lzx temp path
+            File.Copy(_lzxPath, lzxTempPath, true);
 
-        // assert - lzx archive contains expected entries
-        AssertEntries(ExpectedEntries, entries);
+            // arrange - lzx archive from file
+            await using var stream = File.OpenRead(lzxTempPath);
+            var lzxArchive = new LzxArchive(stream);
+
+            // act - read entries
+            var entries = (await lzxArchive.Entries()).ToList();
+
+            // assert - lzx archive contains expected entries
+            AssertEntries(ExpectedEntries, entries);
+
+            // assert - contains merged entries
+            Assert.Contains(entries, x => x.IsMergedEntry);
+        }
+        finally
+        {
+            if (File.Exists(lzxTempPath))
+            {
+                File.Delete(lzxTempPath);
+            }
+        }
     }
 
     [Fact]
-    public async Task WhenExtractEntriesFromLzxArchiveThenEntriesBytesMatch()
+    public async Task When_IteratingArchiveEntries_Then_EntriesAreReturned()
     {
-        // arrange - open lzx file
-        var path = Path.Combine("TestData", "Lzx", "xpk_compress.lzx");
-        await using var stream = File.OpenRead(path);
-        var lzxArchive = new LzxArchive(stream);
+        // arrange - paths
+        var lzxTempPath = $"{Guid.NewGuid()}.lzx";
 
-        // act - iterate archive entries
-        var entries = new List<LzxEntry>();
-        while (await lzxArchive.Next() is { } entry)
+        try
         {
-            entries.Add(entry);
+            // arrange - copy lzx test data to lzx temp path
+            File.Copy(_lzxPath, lzxTempPath, true);
 
-            // act - extract entry bytes
-            byte[] actualBytes;
-            using (var memoryStream = new MemoryStream())
+            // arrange - lzx archive from file
+            await using var stream = File.OpenRead(lzxTempPath);
+            var lzxArchive = new LzxArchive(stream);
+
+            // act - iterate archive entries
+            var entries = new List<LzxEntry>();
+            while (await lzxArchive.Next() is { } entry)
             {
-                await lzxArchive.Extract(memoryStream);
-                actualBytes = memoryStream.ToArray();
+                entries.Add(entry);
             }
 
-            // assert - expected files are equal to extracted actual bytes 
-            var expectedBytes = await File.ReadAllBytesAsync(Path.Combine("TestData", "Lzx", entry.Name));
-            Assert.Equal(expectedBytes.Length, actualBytes.Length);
-            Assert.Equal(expectedBytes, actualBytes);
+            // assert - lzx archive contains expected entries
+            AssertEntries(ExpectedEntries, entries);
+
+            // assert - contains merged entries
+            Assert.Contains(entries, x => x.IsMergedEntry);
         }
-
-        // assert - lzx archive contains expected entries
-        AssertEntries(ExpectedEntries, entries);
-    }
-
-    [Fact]
-    public async Task WhenIterateWithoutExtractingEntriesFromLzxArchiveThenEntriesMatch()
-    {
-        // arrange - open lzx file
-        var path = Path.Combine("TestData", "Lzx", "xpk_compress.lzx");
-        await using var stream = File.OpenRead(path);
-        var lzxArchive = new LzxArchive(stream);
-
-        // act - iterate archive entries
-        var entries = new List<LzxEntry>();
-        while (await lzxArchive.Next() is { } entry)
+        finally
         {
-            entries.Add(entry);
+            if (File.Exists(lzxTempPath))
+            {
+                File.Delete(lzxTempPath);
+            }
         }
+    }
+    
+    [Fact]
+    public async Task When_ExtractingArchiveEntries_Then_EntriesBytesMatch()
+    {
+        // arrange - paths
+        var lzxTempPath = $"{Guid.NewGuid()}.lzx";
 
-        // assert - lzx archive contains expected entries
-        AssertEntries(ExpectedEntries, entries);
+        try
+        {
+            // arrange - copy lzx test data to lzx temp path
+            File.Copy(_lzxPath, lzxTempPath, true);
+
+            // arrange - lzx archive from file
+            await using var stream = File.OpenRead(lzxTempPath);
+            var lzxArchive = new LzxArchive(stream);
+
+            // act - iterate archive entries
+            var entries = new List<LzxEntry>();
+            while (await lzxArchive.Next() is { } entry)
+            {
+                entries.Add(entry);
+
+                // act - extract entry bytes
+                byte[] actualBytes;
+                using (var memoryStream = new MemoryStream())
+                {
+                    await lzxArchive.Extract(memoryStream);
+                    actualBytes = memoryStream.ToArray();
+                }
+
+                // assert - expected files are equal to extracted actual bytes 
+                var expectedBytes = await File.ReadAllBytesAsync(Path.Combine("TestData", "Lzx", entry.Name));
+                Assert.Equal(expectedBytes.Length, actualBytes.Length);
+                Assert.Equal(expectedBytes, actualBytes);
+            }
+
+            // assert - lzx archive contains expected entries
+            AssertEntries(ExpectedEntries, entries);
+
+            // assert - contains merged entries
+            Assert.Contains(entries, x => x.IsMergedEntry);
+        }
+        finally
+        {
+            if (File.Exists(lzxTempPath))
+            {
+                File.Delete(lzxTempPath);
+            }
+        }
     }
 }

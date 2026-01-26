@@ -8,7 +8,8 @@
     {
         private readonly Stream stream;
         private readonly LzxReader reader;
-        private readonly LzxExtractor extractor; 
+        private readonly LzxExtractor extractor;
+        private readonly IteratorStream _iteratorStream;
         private LzxMergedChunk mergedChunk;
         private int MergedChunkEntryIndex { get; set; }
         private bool hasExtractedCurrentEntry;
@@ -23,6 +24,7 @@
             this.MergedChunkEntryIndex = 0;
             this.hasExtractedCurrentEntry = false;
             this.CurrentEntry = null;
+            _iteratorStream = new IteratorStream();
         }
         
         /// <summary>
@@ -35,9 +37,9 @@
             // if current entry was not extracted.
             // required as offsets for individual entries compressed data is not seekable and has to be iterated over
             if (!this.hasExtractedCurrentEntry && this.mergedChunk != null && 
-                this.MergedChunkEntryIndex < this.mergedChunk.Entries.Count)
+                this.MergedChunkEntryIndex <= this.mergedChunk.Entries.Count)
             {
-                await Extract(null);
+                await Extract(_iteratorStream);
             }
 
             hasExtractedCurrentEntry = false;
@@ -86,12 +88,13 @@
                 entries.Add(entry);
             } while (entry.PackedSize == 0);
 
-            if (entry == null || entries.Count == 0)
+            if (entries.Count <= 0)
             {
                 return null;
             }
-
-            return new LzxMergedChunk(entries, entry.PackMode, entry.PackedSize, stream.Position);
+            
+            var mergedEntry = entries[entries.Count - 1];
+            return new LzxMergedChunk(entries, mergedEntry.PackMode, mergedEntry.PackedSize, stream.Position);
         }
         
         /// <summary>
@@ -114,6 +117,31 @@
             }
             
             hasExtractedCurrentEntry = true;
+        }
+
+        private class IteratorStream : Stream
+        {
+            public override void Flush()
+            {
+            }
+
+            public override int Read(byte[] buffer, int offset, int count) => 0;
+
+            public override long Seek(long offset, SeekOrigin origin) => 0;
+
+            public override void SetLength(long value)
+            {
+            }
+
+            public override void Write(byte[] buffer, int offset, int count)
+            {
+            }
+
+            public override bool CanRead => false;
+            public override bool CanSeek => false;
+            public override bool CanWrite => true;
+            public override long Length => 0;
+            public override long Position { get => 0; set { } }
         }
     }
 }

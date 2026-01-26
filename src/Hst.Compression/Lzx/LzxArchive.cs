@@ -51,7 +51,7 @@
         public async Task Extract(Stream outputStream)
         {
             await this.iterator.Extract(outputStream);
-        }    
+        }
         
         public void Dispose()
         {
