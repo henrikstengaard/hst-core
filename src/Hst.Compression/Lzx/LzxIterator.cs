@@ -8,7 +8,7 @@
     {
         private readonly Stream stream;
         private readonly LzxReader reader;
-        private readonly LzxExtractor extractor; 
+        private readonly LzxExtractor extractor;
         private LzxMergedChunk mergedChunk;
         private int MergedChunkEntryIndex { get; set; }
         private bool hasExtractedCurrentEntry;
@@ -31,13 +31,12 @@
         /// <returns>Entry</returns>
         public async Task<LzxEntry> Next()
         {
-            // iterate over current entry compressed data by extracting compressed entry data to null,
-            // if current entry was not extracted.
-            // required as offsets for individual entries compressed data is not seekable and has to be iterated over
-            if (!this.hasExtractedCurrentEntry && this.mergedChunk != null && 
-                this.MergedChunkEntryIndex < this.mergedChunk.Entries.Count)
+            // iterate over current entry compressed data using seek, if current entry has packed data
+            // and was not extracted.
+            if (!this.hasExtractedCurrentEntry && this.CurrentEntry != null && 
+                this.CurrentEntry.PackedSize > 0)
             {
-                await Extract(null);
+                stream.Seek(CurrentEntry.PackedSize, SeekOrigin.Current);
             }
 
             hasExtractedCurrentEntry = false;
@@ -86,12 +85,13 @@
                 entries.Add(entry);
             } while (entry.PackedSize == 0);
 
-            if (entry == null || entries.Count == 0)
+            if (entries.Count <= 0)
             {
                 return null;
             }
-
-            return new LzxMergedChunk(entries, entry.PackMode, entry.PackedSize, stream.Position);
+            
+            var mergedEntry = entries[entries.Count - 1];
+            return new LzxMergedChunk(entries, mergedEntry.PackMode, mergedEntry.PackedSize, stream.Position);
         }
         
         /// <summary>

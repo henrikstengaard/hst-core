@@ -152,5 +152,8 @@
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
       <None Remove="TestData\Lzx\eme_files.txt" />
+      <None Update="TestData\Lzx\dirs-files.lzx">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 </Project>
