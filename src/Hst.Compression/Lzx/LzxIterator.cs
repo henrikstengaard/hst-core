@@ -9,7 +9,6 @@
         private readonly Stream stream;
         private readonly LzxReader reader;
         private readonly LzxExtractor extractor;
-        private readonly IteratorStream _iteratorStream;
         private LzxMergedChunk mergedChunk;
         private int MergedChunkEntryIndex { get; set; }
         private bool hasExtractedCurrentEntry;
@@ -24,7 +23,6 @@
             this.MergedChunkEntryIndex = 0;
             this.hasExtractedCurrentEntry = false;
             this.CurrentEntry = null;
-            _iteratorStream = new IteratorStream();
         }
         
         /// <summary>
@@ -33,13 +31,12 @@
         /// <returns>Entry</returns>
         public async Task<LzxEntry> Next()
         {
-            // iterate over current entry compressed data by extracting compressed entry data to null,
-            // if current entry was not extracted.
-            // required as offsets for individual entries compressed data is not seekable and has to be iterated over
-            if (!this.hasExtractedCurrentEntry && this.mergedChunk != null && 
-                this.MergedChunkEntryIndex <= this.mergedChunk.Entries.Count)
+            // iterate over current entry compressed data using seek, if current entry has packed data
+            // and was not extracted.
+            if (!this.hasExtractedCurrentEntry && this.CurrentEntry != null && 
+                this.CurrentEntry.PackedSize > 0)
             {
-                await Extract(_iteratorStream);
+                stream.Seek(CurrentEntry.PackedSize, SeekOrigin.Current);
             }
 
             hasExtractedCurrentEntry = false;
@@ -117,31 +114,6 @@
             }
             
             hasExtractedCurrentEntry = true;
-        }
-
-        private class IteratorStream : Stream
-        {
-            public override void Flush()
-            {
-            }
-
-            public override int Read(byte[] buffer, int offset, int count) => 0;
-
-            public override long Seek(long offset, SeekOrigin origin) => 0;
-
-            public override void SetLength(long value)
-            {
-            }
-
-            public override void Write(byte[] buffer, int offset, int count)
-            {
-            }
-
-            public override bool CanRead => false;
-            public override bool CanSeek => false;
-            public override bool CanWrite => true;
-            public override long Length => 0;
-            public override long Position { get => 0; set { } }
         }
     }
 }
