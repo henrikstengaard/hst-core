@@ -474,6 +474,11 @@ namespace Hst.Core.IO
                 // read block number from layer stream 
                 var blockNumberBytes = new byte[8];
 #if NETSTANDARD2_0
+                var blockNumberBytesRead = await _layerStream.ReadAsync(blockNumberBytes, 0, 8, cancellationToken);
+                if (blockNumberBytesRead != 8)
+                {
+                    throw new IOException("Failed to block number from layer during flush");
+                }
 #else
                 await _layerStream.ReadExactlyAsync(blockNumberBytes, 0, 8, cancellationToken);
 #endif
