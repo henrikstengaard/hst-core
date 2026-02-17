@@ -155,5 +155,8 @@
       <None Update="TestData\Lzx\dirs-files.lzx">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
+      <None Update="TestData\Lzx\special_chars.lzx">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 </Project>

@@ -11,7 +11,7 @@ using Xunit;
 public class GivenLzxArchiveWithMergedEntries
 {
     private readonly string _lzxPath = Path.Combine("TestData", "Lzx", "xpk_compress.lzx");
-    
+
     private static readonly AttributesEnum Attributes =
         AttributesEnum.Read | AttributesEnum.Write | AttributesEnum.Executable | AttributesEnum.Delete;
 
@@ -141,7 +141,7 @@ public class GivenLzxArchiveWithMergedEntries
             }
         }
     }
-    
+
     [Fact]
     public async Task When_ExtractingArchiveEntries_Then_EntriesBytesMatch()
     {
