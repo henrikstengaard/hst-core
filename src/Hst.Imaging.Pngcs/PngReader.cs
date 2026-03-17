@@ -1,4 +1,6 @@
-﻿namespace Hst.Imaging.Pngcs
+﻿using Hjg.Pngcs.Chunks;
+
+namespace Hst.Imaging.Pngcs
 {
     using System;
     using System.Collections.Generic;
@@ -13,6 +15,7 @@
         public static Image Read(Stream stream)
         {
             var pngReader = new Hjg.Pngcs.PngReader(stream);
+            pngReader.ChunkLoadBehaviour = ChunkLoadBehaviour.LOAD_CHUNK_KNOWN;
             return pngReader.ImgInfo.Indexed ? ReadIndexedImage(pngReader) : ReadImage(pngReader);
         }
 

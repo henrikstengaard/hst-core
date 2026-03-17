@@ -41,6 +41,9 @@
       <None Update="TestData\Pngs\8bpp.png">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
+      <None Update="TestData\Pngs\AmigaPngIcon.info">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
 </Project>

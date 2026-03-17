@@ -92,5 +92,23 @@
             // assert - image data matches expected image data
             Assert.Equal(expectedImage.PixelData, image.PixelData);
         }
+
+        [Fact]
+        public async Task When_ReadingPngWithUnknownChunks_Then_PngImageIsRead()
+        {
+            // arrange - read png bytes from file
+            var pngBytes = await File.ReadAllBytesAsync(Path.Combine("TestData", "Pngs", "AmigaPngIcon.info"));
+            
+            // arrange - create memory stream from png bytes
+            var pngStream = new MemoryStream(pngBytes);
+            
+            // act - read image from png
+            var image = PngReader.Read(pngStream);
+            
+            // assert - image properties match expected values
+            Assert.Equal(46, image.Width);
+            Assert.Equal(46, image.Height);
+            Assert.Equal(32, image.BitsPerPixel);
+        }
     }
 }
