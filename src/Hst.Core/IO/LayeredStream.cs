@@ -90,7 +90,7 @@ namespace Hst.Core.IO
             /// <summary>
             /// Number of block
             /// </summary>
-#if NETSTANDARD2_0
+#if NETSTANDARD2_1
             public long Number { get; set; }
 #else
             public long Number { get; init; }
@@ -99,7 +99,7 @@ namespace Hst.Core.IO
             /// <summary>
             /// Base offset of block in base stream
             /// </summary>
-#if NETSTANDARD2_0
+#if NETSTANDARD2_1
             public long BaseOffset { get; set; }
 #else
             public long BaseOffset { get; init; }
@@ -108,7 +108,7 @@ namespace Hst.Core.IO
             /// <summary>
             /// Layer offset of block in layer stream
             /// </summary>
-#if NETSTANDARD2_0
+#if NETSTANDARD2_1
             public long LayerOffset { get; set; }
 #else
             public long LayerOffset { get; init; }
@@ -357,7 +357,7 @@ namespace Hst.Core.IO
             // read layer header
             var layerHeaderBytes = new byte[LAYER_HEADER_SIZE];
             _layerStream.Seek(0, SeekOrigin.Begin);
-#if NETSTANDARD2_0
+#if NETSTANDARD2_1
             var headerBytesRead = _layerStream.Read(layerHeaderBytes, 0, LAYER_HEADER_SIZE);
             if (headerBytesRead != LAYER_HEADER_SIZE)
             {
@@ -397,7 +397,7 @@ namespace Hst.Core.IO
             {
                 // read block layer offset
                 var blockLayerOffsetBytes = new byte[8];
-#if NETSTANDARD2_0
+#if NETSTANDARD2_1
                 var bytesRead = _layerStream.Read(blockLayerOffsetBytes, 0, 8);
                 if (bytesRead != 8)
                 {
@@ -473,7 +473,7 @@ namespace Hst.Core.IO
             
                 // read block number from layer stream 
                 var blockNumberBytes = new byte[8];
-#if NETSTANDARD2_0
+#if NETSTANDARD2_1
                 var blockNumberBytesRead = await _layerStream.ReadAsync(blockNumberBytes, 0, 8, cancellationToken);
                 if (blockNumberBytesRead != 8)
                 {
@@ -491,7 +491,7 @@ namespace Hst.Core.IO
                 }
 
                 // read block data from layer stream
-#if NETSTANDARD2_0
+#if NETSTANDARD2_1
                 var layerBlockBytesRead = await _layerStream.ReadAsync(_blockBuffer, 0, allocatedBlock.Size, cancellationToken);
                 if (layerBlockBytesRead != allocatedBlock.Size)
                 {
@@ -503,7 +503,7 @@ namespace Hst.Core.IO
             
                 // write block data to base stream
                 _baseStream.Position = allocatedBlock.Number * _options.BlockSize;
-#if NETSTANDARD2_0
+#if NETSTANDARD2_1
                 await _baseStream.WriteAsync(_blockBuffer, 0, allocatedBlock.Size, cancellationToken);
 #else
                 await _baseStream.WriteAsync(_blockBuffer.AsMemory(0, allocatedBlock.Size), cancellationToken);
