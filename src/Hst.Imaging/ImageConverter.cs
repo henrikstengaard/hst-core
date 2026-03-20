@@ -76,5 +76,52 @@ namespace Hst.Imaging
             // swap transparent color and color zero via deconstruction
             (colors[transparentColor], colors[0]) = (colors[0], colors[transparentColor]);
         }
+
+        /// <summary>
+        /// Convert image to true color.
+        /// 32-bit RGBA true color image is created if image is transparent otherwise 24-bit RGB true color image is created.
+        /// </summary>
+        /// <param name="image"></param>
+        /// <returns></returns>
+        /// <exception cref="InvalidOperationException"></exception>
+        public static Image ToTrueColor(Image image)
+        {
+            if (image.BitsPerPixel >= 24)
+            {
+                throw new InvalidOperationException("Image is already true color");
+            }
+
+            var hasAlpha = image.IsTransparent;
+            var pixelData = new byte[image.Width * image.Height * (3 + (hasAlpha ? 1 : 0))];
+
+            var pixelDataIterator = new ImagePixelDataIterator(image);
+
+            var offset = 0;
+            for (int y = 0; y < image.Height; y++)
+            {
+                for (int x = 0; x < image.Width; x++)
+                {
+                    if (!pixelDataIterator.Next())
+                    {
+                        throw new InvalidOperationException();
+                    }
+
+                    var pixel = pixelDataIterator.Current;
+
+                    pixelData[offset++] = (byte)pixel.R;
+                    pixelData[offset++] = (byte)pixel.G;
+                    pixelData[offset++] = (byte)pixel.B;
+
+                    if (!hasAlpha)
+                    {
+                        continue;
+                    }
+                    
+                    pixelData[offset++] = (byte)pixel.A;
+                }
+            }
+            
+            return new Image(image.Width, image.Height, hasAlpha ? 32 : 24, pixelData);
+        }
     }
 }

@@ -42,6 +42,34 @@ public class GivenImageConverter : ImageTestBase
         Assert.Equal(8, convertedImage.BitsPerPixel);
         AssertEqual(expectedImage, convertedImage);
     }
+    
+    [Fact]
+    public void When_Convert8BppImageTo24BppTrueColor_Then_ImageMatch()
+    {
+        // arrange - create 8 bpp image
+        var expectedImage = Create8BppImage(false);
+
+        // act - convert 8 bpp image to true color
+        var convertedImage = ImageConverter.ToTrueColor(expectedImage);
+        
+        // assert - expected and converted image match
+        Assert.Equal(24, convertedImage.BitsPerPixel);
+        AssertEqual(expectedImage, convertedImage);
+    }
+    
+    [Fact]
+    public void When_ConvertTransparent8BppImageTo32BppTrueColor_Then_ImageMatch()
+    {
+        // arrange - create 8 bpp image
+        var expectedImage = Create8BppImage(true);
+
+        // act - convert 8 bpp image to true color
+        var convertedImage = ImageConverter.ToTrueColor(expectedImage);
+        
+        // assert - expected and converted image match
+        Assert.Equal(32, convertedImage.BitsPerPixel);
+        AssertEqual(expectedImage, convertedImage);
+    }
 
     private void AssertEqual(Image expectedImage, Image convertedImage)
     {
