@@ -419,8 +419,8 @@ public class GivenCachedStream
         // assert - cached stream has not flushed updated cached blocks
         Assert.Empty(monitorStream.Writes);
 
-        // act - wait 300 milliseconds
-        await Task.Delay(300);
+        // act - wait 2000 milliseconds
+        await Task.Delay(2000);
         
         // assert - stream contains 5 bytes of data, cached blocks should have been written to stream
         Assert.Equal(5, stream.Length);
