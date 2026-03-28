@@ -156,7 +156,9 @@ namespace Hst.Core.IO
 
         public bool IsDisposed { get; private set; }
 
+        public event EventHandler<EventArgs> FlushStarted;
         public event EventHandler<DataFlushedEventArgs> DataFlushed;
+        public event EventHandler<DataFlushedEventArgs> FlushEnded;
 
         /// <summary>
         /// Creates layered stream applying layer stream on top of base stream with default options.
@@ -219,15 +221,25 @@ namespace Hst.Core.IO
             _dataFlushedEventArgs = null;
         }
 
-        private void SendDataFlushed(object sender, EventArgs args)
+        private void SendFlushStarted(object sender)
+        {
+            FlushStarted?.Invoke(sender, EventArgs.Empty);
+        }
+
+        private void SendDataFlushed(object sender, EventArgs _)
         {
             if (_dataFlushedEventArgs == null)
             {
                 return;
             }
 
-            DataFlushed?.Invoke(this, _dataFlushedEventArgs);
+            DataFlushed?.Invoke(sender, _dataFlushedEventArgs);
             _dataFlushedEventArgs = null;
+        }
+        
+        private void SendFlushEnded(object sender, DataFlushedEventArgs dataFlushedEventArgs)
+        {
+            FlushEnded?.Invoke(sender, dataFlushedEventArgs);
         }
         
         public LayerStatus GetLayerStatus()
@@ -271,6 +283,15 @@ namespace Hst.Core.IO
                 SendDataFlushed(this, EventArgs.Empty);
             }
         }
+        
+        private void OnFlushEnded(double percentComplete, long bytesProcessed, long bytesRemaining, long bytesTotal,
+            TimeSpan timeElapsed, TimeSpan timeRemaining, TimeSpan timeTotal, long bytesPerSecond)
+        {
+            var dataFlushedEventArgs = new DataFlushedEventArgs(percentComplete, bytesProcessed, bytesRemaining,
+                bytesTotal, timeElapsed, timeRemaining, timeTotal, bytesPerSecond);
+            
+            SendFlushEnded(this, dataFlushedEventArgs);
+        }
 
         protected override void Dispose(bool disposing)
         {
@@ -283,7 +304,6 @@ namespace Hst.Core.IO
             {
                 _timer.Elapsed -= SendDataFlushed;
                 _timer.Stop();
-                SendDataFlushed(this, EventArgs.Empty);
 
                 if (_options.FlushLayerOnDispose)
                 {
@@ -458,6 +478,8 @@ namespace Hst.Core.IO
             
             var stopwatch = new Stopwatch();
             stopwatch.Start();
+
+            SendFlushStarted(this);
             
             await _baseStream.FlushAsync(cancellationToken);
             
@@ -500,7 +522,7 @@ namespace Hst.Core.IO
 #else
                 await _layerStream.ReadExactlyAsync(_blockBuffer, 0, allocatedBlock.Size, cancellationToken);
 #endif
-            
+
                 // write block data to base stream
                 _baseStream.Position = allocatedBlock.Number * _options.BlockSize;
 #if NETSTANDARD2_1
@@ -532,7 +554,7 @@ namespace Hst.Core.IO
             
             stopwatch.Stop();
             
-            OnDataFlushed(100, bytesProcessed, 0, bytesTotal, stopwatch.Elapsed,
+            OnFlushEnded(100, bytesProcessed, 0, bytesTotal, stopwatch.Elapsed,
                 TimeSpan.Zero, stopwatch.Elapsed, 0);
         }
         

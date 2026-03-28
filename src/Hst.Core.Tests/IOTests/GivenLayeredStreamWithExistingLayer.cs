@@ -240,9 +240,22 @@ public class GivenLayeredStreamWithExistingLayer
 
         // arrange - layered stream on top of base and layer streams
         await using var layeredStream = new LayeredStream(baseStream, layerStream, new LayeredStreamOptions{ BlockSize =  BLOCK_SIZE });
+        var flushStarted = false;
+        var dataFlushed = false;
+        var flushEnded = false;
         var bytesProcessed = 0L;
-        layeredStream.DataFlushed += (s, e) =>
+        layeredStream.FlushStarted += (_, _) =>
         {
+            flushStarted = true;
+        };
+        layeredStream.DataFlushed += (_, e) =>
+        {
+            dataFlushed = true;
+            bytesProcessed = e.BytesProcessed;
+        };
+        layeredStream.FlushEnded += (_, e) =>
+        {
+            flushEnded = true;
             bytesProcessed = e.BytesProcessed;
         };
         
@@ -278,12 +291,17 @@ public class GivenLayeredStreamWithExistingLayer
             Assert.Equal(_blockTestDataBytes, baseStreamBlockBytes);
         }
         
+        // assert - flush started, data flushed and flush ended events triggered
+        Assert.True(flushStarted);
+        Assert.True(dataFlushed);
+        Assert.True(flushEnded);
+
         // assert - bytes processed is equal to size
         Assert.Equal(SIZE, bytesProcessed);
     }
 
     [Fact]
-    public async Task When_FlushLayerWithoutChanges_Then_DataIsFlushedFromLayerToBaseStream()
+    public async Task When_FlushLayerWithoutChanges_Then_NoDataIsFlushedFromLayerToBaseStream()
     {
         // arrange - base stream with size
         using var baseStream = new MemoryStream();
@@ -294,9 +312,22 @@ public class GivenLayeredStreamWithExistingLayer
 
         // arrange - layered stream on top of base and layer streams
         await using var layeredStream = new LayeredStream(baseStream, layerStream, new LayeredStreamOptions{ BlockSize =  BLOCK_SIZE });
+        var flushStarted = false;
+        var dataFlushed = false;
+        var flushEnded = false;
         var bytesProcessed = 0L;
-        layeredStream.DataFlushed += (s, e) =>
+        layeredStream.FlushStarted += (_, _) =>
         {
+            flushStarted = true;
+        };
+        layeredStream.DataFlushed += (_, e) =>
+        {
+            dataFlushed = true;
+            bytesProcessed = e.BytesProcessed;
+        };
+        layeredStream.FlushEnded += (_, e) =>
+        {
+            flushEnded = true;
             bytesProcessed = e.BytesProcessed;
         };
         
@@ -329,6 +360,11 @@ public class GivenLayeredStreamWithExistingLayer
         await baseStream.ReadExactlyAsync(actualData, 0, SIZE);
         var expectedData = new byte[SIZE];
         Assert.Equal(expectedData, actualData);
+        
+        // assert - flush started, data flushed and flush ended events didn't trigger
+        Assert.False(flushStarted);
+        Assert.False(dataFlushed);
+        Assert.False(flushEnded);
         
         // assert - bytes processed is equal to 0
         Assert.Equal(0, bytesProcessed);
