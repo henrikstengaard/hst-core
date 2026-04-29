@@ -302,13 +302,13 @@ namespace Hst.Core.IO
         
             if (disposing)
             {
-                _timer.Elapsed -= SendDataFlushed;
-                _timer.Stop();
-
                 if (_options.FlushLayerOnDispose)
                 {
                     FlushLayer().GetAwaiter().GetResult();
                 }
+
+                _timer.Elapsed -= SendDataFlushed;
+                _timer.Stop();
 
                 if (!_options.LeaveLayerStreamOpen)
                 {
