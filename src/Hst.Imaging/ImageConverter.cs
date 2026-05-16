@@ -55,7 +55,7 @@ namespace Hst.Imaging
             if (colors.Count > 256)
             {
                 throw new ArgumentException(
-                    $"Image has {colors.Count} colors and NewIcon only allows max 256 colors",
+                    $"Image has {colors.Count} colors, which is more than 256 colors an 8 bpp image allows",
                     nameof(image));
             }
 
