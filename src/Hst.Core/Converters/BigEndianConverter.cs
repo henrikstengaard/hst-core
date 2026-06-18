@@ -1,5 +1,22 @@
 ﻿namespace Hst.Core.Converters
 {
+    /// <summary>
+    /// <para>
+    /// Big-endian converter that convert integer values to bytes and bytes to integer values.
+    /// A big-endian system stores the most significant byte (MSB) at the lowest memory address.
+    /// The "big end" (the most significant part of the data) comes first.
+    /// </para>
+    /// <para>
+    /// For the same 32-bit integer 0x12345678, a big-endian system would store it as:
+    /// <code>
+    /// Address:  00  01  02  03<br/>
+    /// Data:     12  34  56  78
+    /// </code>
+    /// </para>
+    /// <para>
+    /// The most significant byte is 0x12, placed at the lowest address (00), followed by 0x34, 0x56, and 0x78 at the highest address (03).
+    /// </para>
+    /// </summary>
     public static class BigEndianConverter
     {
         public static short ConvertBytesToInt16(byte[] bytes, int offset = 0)
@@ -29,55 +46,27 @@
                    (uint)(bytes[offset] << 24);
         }
 
-        public static byte[] ConvertUInt16ToBytes(ushort value)
-        {
-            var data = new byte[2];
-            ConvertUInt16ToBytes(value, data, 0);
-            return data;
-        }
-
-        public static void ConvertUInt16ToBytes(ushort value, byte[] data, int offset)
+        public static void ConvertInt16ToBytes(short value, byte[] data, int offset = 0)
         {
             data[offset] = (byte)((value >> 8) & 0xFF);
             data[offset + 1] = (byte)(value & 0xFF);
         }
 
-        public static byte[] ConvertUInt32ToBytes(uint value)
-        {
-            var data = new byte[4];
-            ConvertUInt32ToBytes(value, data, 0);
-            return data;
-        }
-
-        public static void ConvertUInt32ToBytes(uint value, byte[] data, int offset)
+        public static void ConvertInt32ToBytes(int value, byte[] data, int offset = 0)
         {
             data[offset] = (byte)((value >> 24) & 0xFF);
             data[offset + 1] = (byte)((value >> 16) & 0xFF);
             data[offset + 2] = (byte)((value >> 8) & 0xFF);
             data[offset + 3] = (byte)(value & 0xFF);
         }
-
-        public static byte[] ConvertInt16ToBytes(short value)
-        {
-            var data = new byte[2];
-            ConvertInt16ToBytes(value, data, 0);
-            return data;
-        }
-
-        public static void ConvertInt16ToBytes(short value, byte[] data, int offset)
+        
+        public static void ConvertUInt16ToBytes(ushort value, byte[] data, int offset = 0)
         {
             data[offset] = (byte)((value >> 8) & 0xFF);
             data[offset + 1] = (byte)(value & 0xFF);
         }
 
-        public static byte[] ConvertInt32ToBytes(int value)
-        {
-            var data = new byte[4];
-            ConvertInt32ToBytes(value, data, 0);
-            return data;
-        }
-
-        public static void ConvertInt32ToBytes(int value, byte[] data, int offset)
+        public static void ConvertUInt32ToBytes(uint value, byte[] data, int offset = 0)
         {
             data[offset] = (byte)((value >> 24) & 0xFF);
             data[offset + 1] = (byte)((value >> 16) & 0xFF);

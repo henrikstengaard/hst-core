@@ -84,7 +84,9 @@
         /// <param name="value"></param>
         public static async Task WriteBigEndianInt16(this Stream stream, short value)
         {
-            await stream.WriteBytes(BigEndianConverter.ConvertInt16ToBytes(value));
+            var bytes = new byte[2];
+            BigEndianConverter.ConvertInt16ToBytes(value, bytes);
+            await stream.WriteBytes(bytes);
         }
         
         /// <summary>
@@ -94,7 +96,9 @@
         /// <param name="value"></param>
         public static async Task WriteBigEndianInt32(this Stream stream, int value)
         {
-            await stream.WriteBytes(BigEndianConverter.ConvertInt32ToBytes(value));
+            var bytes = new byte[4];
+            BigEndianConverter.ConvertInt32ToBytes(value, bytes);
+            await stream.WriteBytes(bytes);
         }
 
         /// <summary>
@@ -104,13 +108,17 @@
         /// <param name="value"></param>
         public static async Task WriteBigEndianUInt16(this Stream stream, ushort value)
         {
-            await stream.WriteBytes(BigEndianConverter.ConvertUInt16ToBytes(value));
+            var bytes = new byte[2];
+            BigEndianConverter.ConvertUInt16ToBytes(value, bytes);
+            await stream.WriteBytes(bytes);
         }
         
         /// Write big endian uint32 (4 bytes) value to stream
         public static async Task WriteBigEndianUInt32(this Stream stream, uint value)
         {
-            await stream.WriteBytes(BigEndianConverter.ConvertUInt32ToBytes(value));
+            var bytes = new byte[4];
+            BigEndianConverter.ConvertUInt32ToBytes(value, bytes);
+            await stream.WriteBytes(bytes);
         }
         
         /// <summary>
