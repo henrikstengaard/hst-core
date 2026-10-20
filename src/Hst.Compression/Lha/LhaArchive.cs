@@ -47,6 +47,11 @@
             LhExt.ExtractOne(stream, outputStream, header);
         }
 
+        public LhaEntryStream OpenEntry(LzHeader header)
+        {
+            return new LhaEntryStream(stream, header);
+        }
+
         public void Dispose()
         {
             stream?.Dispose();

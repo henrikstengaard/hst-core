@@ -30,3 +30,16 @@ while ((entry = await lzxArchive.Next()) != null)
 }
 ```
 
+
+Example of opening an entry in a lzx archive as a stream, which decompresses data as it's read:
+
+```
+await using var stream = File.OpenRead("test.lzx");
+var lzxArchive = new LzxArchive(stream);
+
+var entry = (await lzxArchive.Entries()).First(x => x.Name == "test.txt");
+
+await using var entryStream = await lzxArchive.OpenEntry(entry);
+using var reader = new StreamReader(entryStream);
+var text = await reader.ReadToEndAsync();
+```

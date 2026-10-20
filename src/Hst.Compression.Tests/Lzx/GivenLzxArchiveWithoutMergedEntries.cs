@@ -161,4 +161,41 @@ public class GivenLzxArchiveWithoutMergedEntries
             }
         }
     }
+
+    [Fact]
+    public async Task When_OpeningEntryStreams_Then_EntriesBytesMatch()
+    {
+        // arrange - lzx archive from file
+        await using var stream = File.OpenRead(_lzxPath);
+        var lzxArchive = new LzxArchive(stream);
+        var entries = (await lzxArchive.Entries()).ToList();
+
+        foreach (var entry in entries)
+        {
+            // act - read entry stream bytes
+            var actualBytes = await ReadEntryStream(lzxArchive, entry);
+
+            // assert - entry data is as expected, directories are empty
+            var expectedBytes = _expectedEntryData.TryGetValue(entry.Name, out var data) ? data : [];
+            Assert.Equal(expectedBytes, actualBytes);
+        }
+    }
+
+    private static async Task<byte[]> ReadEntryStream(LzxArchive lzxArchive, LzxEntry entry)
+    {
+        // read with small buffer to read across decrunch boundaries
+        await using var entryStream = await lzxArchive.OpenEntry(entry);
+        using var memoryStream = new MemoryStream();
+        var buffer = new byte[7];
+        int bytesRead;
+        while ((bytesRead = entryStream.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            memoryStream.Write(buffer, 0, bytesRead);
+        }
+
+        Assert.Equal(entry.UnpackedSize, entryStream.Length);
+        Assert.Equal(entry.UnpackedSize, entryStream.Position);
+
+        return memoryStream.ToArray();
+    }
 }

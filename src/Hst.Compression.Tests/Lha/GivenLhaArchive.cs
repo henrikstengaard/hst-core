@@ -207,5 +207,82 @@
             Assert.NotEmpty(entries);
             Assert.Equal(6, entries.Count);
         }
+
+        [Theory]
+        [InlineData("amiga.lha")]
+        [InlineData("large-file.lha")]
+        [InlineData("test_read_format_lha_lh0.lzh")]
+        [InlineData("test_read_format_lha_lh6.lzh")]
+        [InlineData("test_read_format_lha_lh7.lzh")]
+        public async Task WhenOpenEntryStreamAndReadThenBytesAreEqualToExtractedBytes(string fileName)
+        {
+            // arrange - open lha file
+            var path = Path.Combine("TestData", "Lha", fileName);
+            await using var stream = File.OpenRead(path);
+            var lhaArchive = new LhaArchive(stream);
+
+            // act - read entries
+            var entries = (await lhaArchive.Entries()).ToList();
+            Assert.NotEmpty(entries);
+
+            foreach (var entry in entries)
+            {
+                // act - extract entry
+                using var expectedStream = new MemoryStream();
+                lhaArchive.Extract(entry, expectedStream);
+
+                // act - open entry stream and read with small buffer to read across decode boundaries
+                await using var entryStream = lhaArchive.OpenEntry(entry);
+                using var actualStream = new MemoryStream();
+                var buffer = new byte[7];
+                int bytesRead;
+                while ((bytesRead = entryStream.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    actualStream.Write(buffer, 0, bytesRead);
+                }
+
+                // assert - entry stream bytes are equal to extracted bytes
+                Assert.Equal(entry.OriginalSize, entryStream.Length);
+                Assert.Equal(entry.OriginalSize, entryStream.Position);
+                Assert.Equal(expectedStream.ToArray(), actualStream.ToArray());
+            }
+        }
+
+        [Fact]
+        public async Task WhenReadMultipleEntryStreamsInterleavedThenBytesAreEqualToExtractedBytes()
+        {
+            // arrange - open lha file
+            var path = Path.Combine("TestData", "Lha", "amiga.lha");
+            await using var stream = File.OpenRead(path);
+            var lhaArchive = new LhaArchive(stream, LhaOptions.AmigaLhaOptions);
+            var entries = (await lhaArchive.Entries()).ToList();
+            var entry1 = entries.First(x => x.Name == "test1.info");
+            var entry2 = entries.First(x => x.Name == @"test1\test2.info");
+
+            // arrange - extract expected bytes
+            using var expectedStream1 = new MemoryStream();
+            lhaArchive.Extract(entry1, expectedStream1);
+            using var expectedStream2 = new MemoryStream();
+            lhaArchive.Extract(entry2, expectedStream2);
+
+            // act - open entry streams and read them interleaved
+            await using var entryStream1 = lhaArchive.OpenEntry(entry1);
+            await using var entryStream2 = lhaArchive.OpenEntry(entry2);
+            using var actualStream1 = new MemoryStream();
+            using var actualStream2 = new MemoryStream();
+            var buffer = new byte[16];
+            int bytesRead1, bytesRead2;
+            do
+            {
+                bytesRead1 = entryStream1.Read(buffer, 0, buffer.Length);
+                actualStream1.Write(buffer, 0, bytesRead1);
+                bytesRead2 = entryStream2.Read(buffer, 0, buffer.Length);
+                actualStream2.Write(buffer, 0, bytesRead2);
+            } while (bytesRead1 > 0 || bytesRead2 > 0);
+
+            // assert - entry streams bytes are equal to extracted bytes
+            Assert.Equal(expectedStream1.ToArray(), actualStream1.ToArray());
+            Assert.Equal(expectedStream2.ToArray(), actualStream2.ToArray());
+        }
     }
 }
