@@ -28,7 +28,7 @@ namespace Hst.Compression.Lha
             Constants.PMARC0_METHOD, Constants.PMARC2_METHOD
         };
 
-        public static void ExtractOne(Stream input, Stream output, LzHeader hdr, bool verifyMode = false)
+        internal static void EnsureSupportedMethod(LzHeader hdr)
         {
             var method = Methods.FirstOrDefault(x => x == hdr.Method);
 
@@ -36,6 +36,11 @@ namespace Hst.Compression.Lha
             {
                 throw new IOException($"Unknown method \"{method}\"; \"{hdr.Name}\" will be skipped ...");
             }
+        }
+
+        public static void ExtractOne(Stream input, Stream output, LzHeader hdr, bool verifyMode = false)
+        {
+            EnsureSupportedMethod(hdr);
 
             var crc = (short)Extract.DecodeLzHuf(input, output, hdr, out var readSize);
 

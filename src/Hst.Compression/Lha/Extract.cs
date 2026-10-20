@@ -18,99 +18,8 @@ namespace Hst.Compression.Lha
             var crcIo = new CrcIo(verifyMode);
             readSize = 0;
             
-            int method;
-            switch (hdr.Method)
-            {
-                case Constants.LZHUFF0_METHOD:
-                    method = Constants.LZHUFF0_METHOD_NUM;
-                    break;
-                case Constants.LZHUFF1_METHOD:
-                    method = Constants.LZHUFF1_METHOD_NUM;
-                    break;
-                case Constants.LZHUFF2_METHOD:
-                    method = Constants.LZHUFF2_METHOD_NUM;
-                    break;
-                case Constants.LZHUFF3_METHOD:
-                    method = Constants.LZHUFF3_METHOD_NUM;
-                    break;
-                case Constants.LZHUFF4_METHOD:
-                    method = Constants.LZHUFF4_METHOD_NUM;
-                    break;
-                case Constants.LZHUFF5_METHOD:
-                    method = Constants.LZHUFF5_METHOD_NUM;
-                    break;
-                case Constants.LZHUFF6_METHOD:
-                    method = Constants.LZHUFF6_METHOD_NUM;
-                    break;
-                case Constants.LZHUFF7_METHOD:
-                    method = Constants.LZHUFF7_METHOD_NUM;
-                    break;
-                case Constants.LARC_METHOD:
-                    method = Constants.LARC_METHOD_NUM;
-                    break;
-                case Constants.LARC5_METHOD:
-                    method = Constants.LARC5_METHOD_NUM;
-                    break;
-                case Constants.LARC4_METHOD:
-                    method = Constants.LARC4_METHOD_NUM;
-                    break;
-                case Constants.PMARC0_METHOD:
-                    method = Constants.PMARC0_METHOD_NUM;
-                    break;
-                case Constants.PMARC2_METHOD:
-                    method = Constants.PMARC2_METHOD_NUM;
-                    break;
-                default:
-                    method = Constants.LZHUFF5_METHOD_NUM;
-                    break;
-            }
-
-            int dicBit;
-            switch (hdr.Method)
-            {
-                case Constants.LZHUFF0_METHOD:
-                    dicBit = Constants.LZHUFF0_DICBIT;
-                    break;
-                case Constants.LZHUFF1_METHOD:
-                    dicBit = Constants.LZHUFF1_DICBIT;
-                    break;
-                case Constants.LZHUFF2_METHOD:
-                    dicBit = Constants.LZHUFF2_DICBIT;
-                    break;
-                case Constants.LZHUFF3_METHOD:
-                    dicBit = Constants.LZHUFF3_DICBIT;
-                    break;
-                case Constants.LZHUFF4_METHOD:
-                    dicBit = Constants.LZHUFF4_DICBIT;
-                    break;
-                case Constants.LZHUFF5_METHOD:
-                    dicBit = Constants.LZHUFF5_DICBIT;
-                    break;
-                case Constants.LZHUFF6_METHOD:
-                    dicBit = Constants.LZHUFF6_DICBIT;
-                    break;
-                case Constants.LZHUFF7_METHOD:
-                    dicBit = Constants.LZHUFF7_DICBIT;
-                    break;
-                case Constants.LARC_METHOD:
-                    dicBit = Constants.LARC_DICBIT;
-                    break;
-                case Constants.LARC5_METHOD:
-                    dicBit = Constants.LARC5_DICBIT;
-                    break;
-                case Constants.LARC4_METHOD:
-                    dicBit = Constants.LARC4_DICBIT;
-                    break;
-                case Constants.PMARC0_METHOD:
-                    dicBit = Constants.PMARC0_DICBIT;
-                    break;
-                case Constants.PMARC2_METHOD:
-                    dicBit = Constants.PMARC2_DICBIT;
-                    break;
-                default:
-                    dicBit = Constants.LZHUFF5_DICBIT;
-                    break;
-            }
+            var method = GetMethodNum(hdr.Method);
+            var dicBit = GetDicBit(hdr.Method);
 
             // reset crc
             crcIo.InitializeCrc();
@@ -128,6 +37,76 @@ namespace Hst.Compression.Lha
             }
 
             return crcIo.crc;
+        }
+
+        internal static int GetMethodNum(string method)
+        {
+            switch (method)
+            {
+                case Constants.LZHUFF0_METHOD:
+                    return Constants.LZHUFF0_METHOD_NUM;
+                case Constants.LZHUFF1_METHOD:
+                    return Constants.LZHUFF1_METHOD_NUM;
+                case Constants.LZHUFF2_METHOD:
+                    return Constants.LZHUFF2_METHOD_NUM;
+                case Constants.LZHUFF3_METHOD:
+                    return Constants.LZHUFF3_METHOD_NUM;
+                case Constants.LZHUFF4_METHOD:
+                    return Constants.LZHUFF4_METHOD_NUM;
+                case Constants.LZHUFF5_METHOD:
+                    return Constants.LZHUFF5_METHOD_NUM;
+                case Constants.LZHUFF6_METHOD:
+                    return Constants.LZHUFF6_METHOD_NUM;
+                case Constants.LZHUFF7_METHOD:
+                    return Constants.LZHUFF7_METHOD_NUM;
+                case Constants.LARC_METHOD:
+                    return Constants.LARC_METHOD_NUM;
+                case Constants.LARC5_METHOD:
+                    return Constants.LARC5_METHOD_NUM;
+                case Constants.LARC4_METHOD:
+                    return Constants.LARC4_METHOD_NUM;
+                case Constants.PMARC0_METHOD:
+                    return Constants.PMARC0_METHOD_NUM;
+                case Constants.PMARC2_METHOD:
+                    return Constants.PMARC2_METHOD_NUM;
+                default:
+                    return Constants.LZHUFF5_METHOD_NUM;
+            }
+        }
+
+        internal static int GetDicBit(string method)
+        {
+            switch (method)
+            {
+                case Constants.LZHUFF0_METHOD:
+                    return Constants.LZHUFF0_DICBIT;
+                case Constants.LZHUFF1_METHOD:
+                    return Constants.LZHUFF1_DICBIT;
+                case Constants.LZHUFF2_METHOD:
+                    return Constants.LZHUFF2_DICBIT;
+                case Constants.LZHUFF3_METHOD:
+                    return Constants.LZHUFF3_DICBIT;
+                case Constants.LZHUFF4_METHOD:
+                    return Constants.LZHUFF4_DICBIT;
+                case Constants.LZHUFF5_METHOD:
+                    return Constants.LZHUFF5_DICBIT;
+                case Constants.LZHUFF6_METHOD:
+                    return Constants.LZHUFF6_DICBIT;
+                case Constants.LZHUFF7_METHOD:
+                    return Constants.LZHUFF7_DICBIT;
+                case Constants.LARC_METHOD:
+                    return Constants.LARC_DICBIT;
+                case Constants.LARC5_METHOD:
+                    return Constants.LARC5_DICBIT;
+                case Constants.LARC4_METHOD:
+                    return Constants.LARC4_DICBIT;
+                case Constants.PMARC0_METHOD:
+                    return Constants.PMARC0_DICBIT;
+                case Constants.PMARC2_METHOD:
+                    return Constants.PMARC2_DICBIT;
+                default:
+                    return Constants.LZHUFF5_DICBIT;
+            }
         }
     }
 }

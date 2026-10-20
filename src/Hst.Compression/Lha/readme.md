@@ -37,3 +37,16 @@ foreach (var entry in await lhaArchive.Entries())
     lhaArchive.Extract(entry, output);
 }
 ```
+
+Example of opening an entry in a lha archive as a stream, which decompresses data as it's read:
+
+```
+await using var stream = File.OpenRead("test.lha");
+var lhaArchive = new LhaArchive(stream);
+
+var entry = (await lhaArchive.Entries()).First(x => x.Name == "test.txt");
+
+await using var entryStream = lhaArchive.OpenEntry(entry);
+using var reader = new StreamReader(entryStream);
+var text = await reader.ReadToEndAsync();
+```

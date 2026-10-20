@@ -28,6 +28,8 @@ namespace Hst.Compression.Lha
             new Pm0Decoder(),
             new Pm2Decoder()
         };
+
+        internal static IDecoder GetDecoder(int method) => Decoders[method - 1];
         
         public static int Decode(CrcIo crcIo, Stream input, Stream output, int method, int dicbit, int origsize,
             int packed, bool extractBrokenArchive)
@@ -38,7 +40,7 @@ namespace Hst.Compression.Lha
             // origsize = interface->original;
             // compsize = interface->packed;
             // decode_set = decode_define[interface->method - 1];
-            var decoder = Decoders[method - 1];
+            var decoder = GetDecoder(method);
             
             var bitIo = new BitIo(input, origsize, packed);
             var lha = new Lha(dicbit, bitIo, crcIo);
