@@ -2,7 +2,7 @@
 {
     using System.IO;
 
-    public class HuffmanTable
+    internal class HuffmanTable
     {
         private static readonly uint[] table_one =
         {

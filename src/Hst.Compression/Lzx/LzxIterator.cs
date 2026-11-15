@@ -4,7 +4,7 @@
     using System.IO;
     using System.Threading.Tasks;
 
-    public class LzxIterator
+    internal class LzxIterator
     {
         private readonly Stream stream;
         private readonly LzxReader reader;

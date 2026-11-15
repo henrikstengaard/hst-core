@@ -21,7 +21,7 @@ namespace Hst.Compression.Lzx
         private int dataCrc;
         private bool verified;
 
-        public LzxEntryStream(Stream stream, LzxMergedChunk mergedChunk, LzxEntry entry)
+        internal LzxEntryStream(Stream stream, LzxMergedChunk mergedChunk, LzxEntry entry)
         {
             if (!stream.CanRead || !stream.CanSeek)
             {

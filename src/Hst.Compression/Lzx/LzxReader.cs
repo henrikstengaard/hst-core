@@ -4,7 +4,7 @@
     using System.IO;
     using System.Threading.Tasks;
 
-    public class LzxReader
+    internal class LzxReader
     {
         private const int InfoHeaderSize = 10;
         private const int ArchiveHeaderSize = 31;

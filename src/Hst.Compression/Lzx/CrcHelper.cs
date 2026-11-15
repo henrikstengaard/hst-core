@@ -1,6 +1,6 @@
 ﻿namespace Hst.Compression.Lzx
 {
-    public static class CrcHelper
+    internal static class CrcHelper
     {
         private static readonly uint[] CrcTable =
         {

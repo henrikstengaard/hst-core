@@ -4,7 +4,7 @@
     using System.IO;
     using System.Threading.Tasks;
 
-    public class LzxExtractor
+    internal class LzxExtractor
     {
         private readonly Stream stream;
         private readonly byte[] read_buffer;

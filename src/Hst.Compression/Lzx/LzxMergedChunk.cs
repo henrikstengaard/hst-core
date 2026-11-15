@@ -2,7 +2,7 @@
 {
     using System.Collections.Generic;
 
-    public class LzxMergedChunk
+    internal class LzxMergedChunk
     {
         public readonly IList<LzxEntry> Entries;
 
