@@ -22,6 +22,6 @@ namespace Hst.Compression.Lha
     /// Creates a decoder for a lha entry.
     /// </summary>
     /// <param name="packedData">Stream with compressed data of entry, limited to packed size of entry.</param>
-    /// <param name="header">Header of entry to decode.</param>
-    public delegate ILhaDecoder LhaDecoderFactory(Stream packedData, LzHeader header);
+    /// <param name="entry">Entry to decode.</param>
+    public delegate ILhaDecoder LhaDecoderFactory(Stream packedData, LhaEntry entry);
 }

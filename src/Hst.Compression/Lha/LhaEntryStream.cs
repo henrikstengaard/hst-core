@@ -17,7 +17,7 @@ namespace Hst.Compression.Lha
     /// </remarks>
     public class LhaEntryStream : Stream
     {
-        private readonly LzHeader header;
+        private readonly LhaEntry entry;
         private readonly ILhaDecoder decoder;
         private ushort crc;
         private long position;
@@ -26,20 +26,20 @@ namespace Hst.Compression.Lha
         /// <summary>
         /// Create entry stream for lha entry in archive stream.
         /// </summary>
-        /// <param name="stream">Archive stream entry header was read from.</param>
-        /// <param name="header">Header of entry to read.</param>
-        public LhaEntryStream(Stream stream, LzHeader header) : this(stream, header, LhaOptions.Default)
+        /// <param name="stream">Archive stream entry was read from.</param>
+        /// <param name="entry">Entry to read.</param>
+        public LhaEntryStream(Stream stream, LhaEntry entry) : this(stream, entry, LhaOptions.Default)
         {
         }
 
         /// <summary>
         /// Create entry stream for lha entry in archive stream.
         /// </summary>
-        /// <param name="stream">Archive stream entry header was read from.</param>
-        /// <param name="header">Header of entry to read.</param>
+        /// <param name="stream">Archive stream entry was read from.</param>
+        /// <param name="entry">Entry to read.</param>
         /// <param name="options">Options with additional decoders.</param>
-        public LhaEntryStream(Stream stream, LzHeader header, LhaOptions options)
-            : this(stream, header, header == null ? 0 : header.HeaderOffset + header.HeaderSize, options)
+        public LhaEntryStream(Stream stream, LhaEntry entry, LhaOptions options)
+            : this(stream, entry, entry == null ? 0 : entry.HeaderOffset + entry.HeaderSize, options)
         {
         }
 
@@ -47,19 +47,19 @@ namespace Hst.Compression.Lha
         /// Create entry stream for lha entry data starting at data offset.
         /// </summary>
         /// <param name="stream">Stream to read entry data from.</param>
-        /// <param name="header">Header of entry to read.</param>
+        /// <param name="entry">Entry to read.</param>
         /// <param name="dataOffset">Offset in stream where entry data starts. Ignored for non-seekable streams.</param>
         /// <param name="options">Options with additional decoders.</param>
-        internal LhaEntryStream(Stream stream, LzHeader header, long dataOffset, LhaOptions options)
+        internal LhaEntryStream(Stream stream, LhaEntry entry, long dataOffset, LhaOptions options)
         {
             if (stream == null)
             {
                 throw new ArgumentNullException(nameof(stream));
             }
 
-            if (header == null)
+            if (entry == null)
             {
-                throw new ArgumentNullException(nameof(header));
+                throw new ArgumentNullException(nameof(entry));
             }
 
             if (!stream.CanRead)
@@ -67,18 +67,18 @@ namespace Hst.Compression.Lha
                 throw new ArgumentException("Stream must be readable", nameof(stream));
             }
 
-            this.header = header;
-            var packedData = new PackedDataStream(stream, dataOffset, header.PackedSize);
-            decoder = LhaDecoders.Create(packedData, header, options);
+            this.entry = entry;
+            var packedData = new PackedDataStream(stream, dataOffset, entry.PackedSize);
+            decoder = LhaDecoders.Create(packedData, entry, options);
             crc = 0;
             position = 0;
             verified = false;
         }
 
         /// <summary>
-        /// Header of entry.
+        /// Entry read.
         /// </summary>
-        public LzHeader Header => header;
+        public LhaEntry Entry => entry;
 
         /// <summary>
         /// CRC-16 of data read so far.
@@ -100,7 +100,7 @@ namespace Hst.Compression.Lha
             // When we reach the end of the stream, we must truncate the
             // decompressed data at exactly the right point (original size),
             // or we may read a few extra false byte(s) by mistake.
-            var remaining = header.OriginalSize - position;
+            var remaining = entry.UnpackedSize - position;
             if (count > remaining)
             {
                 count = (int)remaining;
@@ -116,13 +116,13 @@ namespace Hst.Compression.Lha
             if (bytesRead == 0)
             {
                 throw new IOException(
-                    $"Unexpected end of compressed data for \"{header.Name}\" at {position} of {header.OriginalSize} bytes");
+                    $"Unexpected end of compressed data for \"{entry.Name}\" at {position} of {entry.UnpackedSize} bytes");
             }
 
             crc = Crc16.Update(crc, buffer, offset, bytesRead);
             position += bytesRead;
 
-            if (position >= header.OriginalSize)
+            if (position >= entry.UnpackedSize)
             {
                 Verify();
             }
@@ -139,16 +139,16 @@ namespace Hst.Compression.Lha
 
             verified = true;
 
-            if (header.HasCrc && crc != (ushort)header.Crc)
+            if (entry.HasCrc && crc != (ushort)entry.Crc)
             {
-                throw new IOException($"CRC error: \"{header.Name}\"");
+                throw new IOException($"CRC error: \"{entry.Name}\"");
             }
         }
 
         public override bool CanRead => true;
         public override bool CanSeek => false;
         public override bool CanWrite => false;
-        public override long Length => header.OriginalSize;
+        public override long Length => entry.UnpackedSize;
 
         public override long Position
         {

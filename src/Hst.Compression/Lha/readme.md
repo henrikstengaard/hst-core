@@ -42,7 +42,7 @@ var lhaArchive = new LhaArchive(stream);
 
 foreach (var entry in await lhaArchive.Entries())
 {
-    if (entry.Method == Constants.LZHDIRS_METHOD)
+    if (entry.Method == LhaMethod.Lhd)
     {
         Directory.CreateDirectory(entry.Name);
         continue;
@@ -81,7 +81,7 @@ Example of creating a lha archive with a directory and a file compressed with `-
 await using var stream = File.Create("test.lha");
 using var lhaWriter = new LhaWriter(stream, new LhaWriterOptions
 {
-    Method = Constants.LZHUFF5_METHOD,
+    Method = LhaMethod.Lh5,
     HeaderLevel = 2
 });
 
@@ -92,3 +92,19 @@ lhaWriter.AddFile("dir/test.txt", data, File.GetLastWriteTime("test.txt"));
 ```
 
 Data that can't be compressed to a smaller size is stored using method `-lh0-`. The end of archive marker is written, when the lha writer is disposed or `Finish()` is called.
+
+## Public api
+
+| Type                 | Description                                                                     |
+|----------------------|---------------------------------------------------------------------------------|
+| `LhaArchive`         | Read entries and extract or open entries as streams.                           |
+| `LhaReader`          | Read entries one by one from a stream.                                          |
+| `LhaEntry`           | Entry with name, method, sizes, date, crc, attributes and unix metadata.        |
+| `LhaEntryStream`     | Stream, which decompresses entry data as it's read and verifies crc at the end. |
+| `LhaOptions`         | Encoding of names and additional decoders.                                      |
+| `ILhaDecoder`        | Interface for additional decoders created by `LhaDecoderFactory`.               |
+| `LhaWriter`          | Create lha archives by adding directories and files.                            |
+| `LhaWriterOptions`   | Encoding, header level, method and generic format used for writing.            |
+| `LhaMethod`          | Compression method identifiers, e.g. `LhaMethod.Lh5` for `-lh5-`.               |
+| `LhaOsType`          | Operating system types stored in headers, e.g. `LhaOsType.Amiga`.               |
+| `LhaUnixMode`        | Unix file type and permission bits of `LhaEntry.UnixMode`.                      |

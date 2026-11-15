@@ -55,7 +55,7 @@ namespace Hst.Compression.Lha
         /// <summary>
         /// Create bytes of header.
         /// </summary>
-        public byte[] Write(LzHeader header)
+        public byte[] Write(LhaEntry header)
         {
             switch (header.HeaderLevel)
             {
@@ -137,7 +137,7 @@ namespace Hst.Compression.Lha
             return bytes.ToArray();
         }
 
-        private static void WriteCommonFields(byte[] buffer, LzHeader header, long packedSize, uint timestamp)
+        private static void WriteCommonFields(byte[] buffer, LhaEntry header, long packedSize, uint timestamp)
         {
             if (header.Method == null || header.Method.Length != 5)
             {
@@ -146,7 +146,7 @@ namespace Hst.Compression.Lha
 
             Encoding.ASCII.GetBytes(header.Method, 0, 5, buffer, 2);
             WriteUInt32(buffer, 7, packedSize);
-            WriteUInt32(buffer, 11, header.OriginalSize);
+            WriteUInt32(buffer, 11, header.UnpackedSize);
             WriteUInt32(buffer, 15, timestamp);
             buffer[20] = (byte)header.HeaderLevel;
         }
@@ -162,7 +162,7 @@ namespace Hst.Compression.Lha
             return (byte)sum;
         }
 
-        private byte[] WriteLevel0(LzHeader header)
+        private byte[] WriteLevel0(LhaEntry header)
         {
             var name = encoding.GetBytes(header.Name);
             var extendedAreaSize = unixExtensions ? 12 : 0;
@@ -176,8 +176,8 @@ namespace Hst.Compression.Lha
 
             var buffer = new byte[headerSize + 2];
             buffer[0] = (byte)headerSize;
-            WriteCommonFields(buffer, header, header.PackedSize, ToDosTime(header.UnixLastModifiedStamp));
-            buffer[19] = (byte)header.Attribute;
+            WriteCommonFields(buffer, header, header.PackedSize, ToDosTime(header.Date));
+            buffer[19] = (byte)header.Attributes;
             buffer[21] = (byte)name.Length;
             Array.Copy(name, 0, buffer, 22, name.Length);
 
@@ -187,12 +187,12 @@ namespace Hst.Compression.Lha
 
             if (unixExtensions)
             {
-                buffer[offset] = Constants.EXTEND_UNIX;
+                buffer[offset] = LhaOsType.Unix;
                 buffer[offset + 1] = 0; // minor version
-                WriteUInt32(buffer, offset + 2, ToUnixTime(header.UnixLastModifiedStamp));
+                WriteUInt32(buffer, offset + 2, ToUnixTime(header.Date));
                 WriteUInt16(buffer, offset + 6, header.UnixMode);
-                WriteUInt16(buffer, offset + 8, header.UnixUid);
-                WriteUInt16(buffer, offset + 10, header.UnixGid);
+                WriteUInt16(buffer, offset + 8, header.UnixUserId);
+                WriteUInt16(buffer, offset + 10, header.UnixGroupId);
             }
 
             buffer[1] = Checksum(buffer, 2, headerSize);
@@ -200,7 +200,7 @@ namespace Hst.Compression.Lha
             return buffer;
         }
 
-        private List<(byte Type, byte[] Data)> CreateExtendedHeaders(LzHeader header, string path,
+        private List<(byte Type, byte[] Data)> CreateExtendedHeaders(LhaEntry header, string path,
             byte[] filename, bool unixTimestamp)
         {
             var extendedHeaders = new List<(byte, byte[])>();
@@ -215,10 +215,10 @@ namespace Hst.Compression.Lha
                 extendedHeaders.Add((EXT_PATH, EncodePath(path)));
             }
 
-            if (header.Attribute != RESERVED_ATTRIBUTE)
+            if (header.Attributes != RESERVED_ATTRIBUTE)
             {
                 var attribute = new byte[2];
-                WriteUInt16(attribute, 0, header.Attribute);
+                WriteUInt16(attribute, 0, header.Attributes);
                 extendedHeaders.Add((EXT_MSDOS_ATTRIBUTE, attribute));
             }
 
@@ -229,14 +229,14 @@ namespace Hst.Compression.Lha
                 extendedHeaders.Add((EXT_UNIX_PERMISSION, permission));
 
                 var uidGid = new byte[4];
-                WriteUInt16(uidGid, 0, header.UnixGid);
-                WriteUInt16(uidGid, 2, header.UnixUid);
+                WriteUInt16(uidGid, 0, header.UnixGroupId);
+                WriteUInt16(uidGid, 2, header.UnixUserId);
                 extendedHeaders.Add((EXT_UNIX_UID_GID, uidGid));
 
                 if (unixTimestamp)
                 {
                     var timestamp = new byte[4];
-                    WriteUInt32(timestamp, 0, ToUnixTime(header.UnixLastModifiedStamp));
+                    WriteUInt32(timestamp, 0, ToUnixTime(header.Date));
                     extendedHeaders.Add((EXT_UNIX_TIMESTAMP, timestamp));
                 }
             }
@@ -275,7 +275,7 @@ namespace Hst.Compression.Lha
             return size;
         }
 
-        private byte[] WriteLevel1(LzHeader header)
+        private byte[] WriteLevel1(LhaEntry header)
         {
             SplitName(header.Name, out var path, out var filename);
             var filenameBytes = encoding.GetBytes(filename);
@@ -293,14 +293,14 @@ namespace Hst.Compression.Lha
 
             // packed size includes extended headers for compatibility with level 0
             WriteCommonFields(buffer, header, header.PackedSize + extendedHeadersSize,
-                ToDosTime(header.UnixLastModifiedStamp));
+                ToDosTime(header.Date));
             buffer[19] = RESERVED_ATTRIBUTE;
             buffer[21] = (byte)baseName.Length;
             Array.Copy(baseName, 0, buffer, 22, baseName.Length);
 
             var offset = 22 + baseName.Length;
             WriteUInt16(buffer, offset, (ushort)header.Crc);
-            buffer[offset + 2] = (byte)header.ExtendType;
+            buffer[offset + 2] = (byte)header.OsType;
 
             WriteExtendedHeaders(buffer, headerSize + 2, extendedHeaders);
             buffer[1] = Checksum(buffer, 2, headerSize);
@@ -308,7 +308,7 @@ namespace Hst.Compression.Lha
             return buffer;
         }
 
-        private byte[] WriteLevel2(LzHeader header)
+        private byte[] WriteLevel2(LhaEntry header)
         {
             SplitName(header.Name, out var path, out var filename);
 
@@ -332,10 +332,10 @@ namespace Hst.Compression.Lha
 
             var buffer = new byte[headerSize];
             WriteUInt16(buffer, 0, headerSize);
-            WriteCommonFields(buffer, header, header.PackedSize, ToUnixTime(header.UnixLastModifiedStamp));
+            WriteCommonFields(buffer, header, header.PackedSize, ToUnixTime(header.Date));
             buffer[19] = RESERVED_ATTRIBUTE;
             WriteUInt16(buffer, 21, (ushort)header.Crc);
-            buffer[23] = (byte)header.ExtendType;
+            buffer[23] = (byte)header.OsType;
 
             WriteExtendedHeaders(buffer, 26, extendedHeaders);
 
@@ -351,7 +351,7 @@ namespace Hst.Compression.Lha
         /// Write header to stream.
         /// </summary>
         /// <returns>Size of header written.</returns>
-        public int Write(LzHeader header, Stream stream)
+        public int Write(LhaEntry header, Stream stream)
         {
             var bytes = Write(header);
             stream.Write(bytes, 0, bytes.Length);

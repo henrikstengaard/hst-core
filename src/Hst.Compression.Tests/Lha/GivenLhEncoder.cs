@@ -16,7 +16,7 @@ namespace Hst.Compression.Tests.Lha
     {
         private static readonly string[] Methods =
         {
-            Constants.LZHUFF4_METHOD, Constants.LZHUFF5_METHOD, Constants.LZHUFF6_METHOD, Constants.LZHUFF7_METHOD
+            LhaMethod.Lh4, LhaMethod.Lh5, LhaMethod.Lh6, LhaMethod.Lh7
         };
 
         public static IEnumerable<object[]> MethodsAndData =>
@@ -37,7 +37,7 @@ namespace Hst.Compression.Tests.Lha
 
             // assert - result has crc and sizes
             Assert.False(result.LimitExceeded);
-            Assert.Equal(data.Length, result.OriginalSize);
+            Assert.Equal(data.Length, result.UnpackedSize);
             Assert.Equal(packed.Length, result.PackedSize);
 
             // act - decode data
@@ -48,8 +48,8 @@ namespace Hst.Compression.Tests.Lha
         }
 
         [Theory]
-        [InlineData(Constants.LZHUFF5_METHOD)]
-        [InlineData(Constants.LZHUFF7_METHOD)]
+        [InlineData(LhaMethod.Lh5)]
+        [InlineData(LhaMethod.Lh7)]
         public void WhenEncodeRandomDataWithLimitThenLimitIsExceededAndBytesWrittenAreLimited(string method)
         {
             // arrange - random data, which can't be compressed
@@ -76,23 +76,23 @@ namespace Hst.Compression.Tests.Lha
 
             // act - encode data with lh5 and lh6
             using var lh5Packed = new MemoryStream();
-            var lh5Result = LhEncoder.Create(Constants.LZHUFF5_METHOD)
+            var lh5Result = LhEncoder.Create(LhaMethod.Lh5)
                 .Encode(new MemoryStream(data), lh5Packed, data.Length, long.MaxValue);
             using var lh6Packed = new MemoryStream();
-            var lh6Result = LhEncoder.Create(Constants.LZHUFF6_METHOD)
+            var lh6Result = LhEncoder.Create(LhaMethod.Lh6)
                 .Encode(new MemoryStream(data), lh6Packed, data.Length, long.MaxValue);
 
             // assert - lh6 finds repeated block and lh5 doesn't
             Assert.True(lh5Result.PackedSize > data.Length * 0.9);
             Assert.True(lh6Result.PackedSize < data.Length * 0.6);
-            Assert.Equal(data, Decode(Constants.LZHUFF5_METHOD, lh5Packed.ToArray(), data.Length, lh5Result.Crc));
-            Assert.Equal(data, Decode(Constants.LZHUFF6_METHOD, lh6Packed.ToArray(), data.Length, lh6Result.Crc));
+            Assert.Equal(data, Decode(LhaMethod.Lh5, lh5Packed.ToArray(), data.Length, lh5Result.Crc));
+            Assert.Equal(data, Decode(LhaMethod.Lh6, lh6Packed.ToArray(), data.Length, lh6Result.Crc));
         }
 
         [Theory]
-        [InlineData(Constants.LZHUFF5_METHOD)]
-        [InlineData(Constants.LZHUFF6_METHOD)]
-        [InlineData(Constants.LZHUFF7_METHOD)]
+        [InlineData(LhaMethod.Lh5)]
+        [InlineData(LhaMethod.Lh6)]
+        [InlineData(LhaMethod.Lh7)]
         public async Task WhenReencodeEntriesFromLhaArchivesThenDataIsEqual(string method)
         {
             // arrange - extract entries from lha archives created by other lha programs
@@ -108,7 +108,7 @@ namespace Hst.Compression.Tests.Lha
                 var lhaArchive = new LhaArchive(stream);
                 foreach (var entry in await lhaArchive.Entries())
                 {
-                    if (entry.Method == Constants.LZHDIRS_METHOD || entry.OriginalSize == 0)
+                    if (entry.Method == LhaMethod.Lhd || entry.UnpackedSize == 0)
                     {
                         continue;
                     }
@@ -132,11 +132,11 @@ namespace Hst.Compression.Tests.Lha
 
         private static byte[] Decode(string method, byte[] packed, long size, ushort crc)
         {
-            var header = new LzHeader
+            var header = new LhaEntry
             {
                 Method = method,
                 Name = "test.bin",
-                OriginalSize = size,
+                UnpackedSize = size,
                 PackedSize = packed.Length,
                 HasCrc = true,
                 Crc = (short)crc

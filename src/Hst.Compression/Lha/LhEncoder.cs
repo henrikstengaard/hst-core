@@ -77,13 +77,13 @@ namespace Hst.Compression.Lha
         {
             switch (method)
             {
-                case Constants.LZHUFF4_METHOD:
+                case LhaMethod.Lh4:
                     return new LhEncoder(12, 4, 256);
-                case Constants.LZHUFF5_METHOD:
+                case LhaMethod.Lh5:
                     return new LhEncoder(13, 4, 256);
-                case Constants.LZHUFF6_METHOD:
+                case LhaMethod.Lh6:
                     return new LhEncoder(15, 5, 512);
-                case Constants.LZHUFF7_METHOD:
+                case LhaMethod.Lh7:
                     return new LhEncoder(16, 5, 512);
                 default:
                     throw new NotSupportedException($"Compression method \"{method}\" is not supported");
@@ -573,14 +573,14 @@ namespace Hst.Compression.Lha
     internal readonly struct LhEncodeResult
     {
         public ushort Crc { get; }
-        public long OriginalSize { get; }
+        public long UnpackedSize { get; }
         public long PackedSize { get; }
         public bool LimitExceeded { get; }
 
         public LhEncodeResult(ushort crc, long originalSize, long packedSize, bool limitExceeded)
         {
             Crc = crc;
-            OriginalSize = originalSize;
+            UnpackedSize = originalSize;
             PackedSize = packedSize;
             LimitExceeded = limitExceeded;
         }

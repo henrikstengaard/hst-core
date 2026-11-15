@@ -84,7 +84,7 @@ namespace Hst.Compression.Lha
             public long CompressedLength;
             public long Length;
             public DateTime Timestamp;
-            public int Attribute;
+            public int Attributes;
             public ushort Crc;
             public bool HasCrc;
             public byte OsType;
@@ -95,8 +95,8 @@ namespace Hst.Compression.Lha
             public bool HasUnixPerms;
             public ushort UnixPerms;
             public bool HasUnixUidGid;
-            public ushort UnixUid;
-            public ushort UnixGid;
+            public ushort UnixUserId;
+            public ushort UnixGroupId;
             public bool HasOs9Perms;
             public ushort Os9Perms;
             public bool HasCommonCrc;
@@ -421,7 +421,7 @@ namespace Hst.Compression.Lha
                         return;
                     }
 
-                    header.Attribute = DecodeUint16(raw, offset);
+                    header.Attributes = DecodeUint16(raw, offset);
                     break;
 
                 // Windows timestamp header (0x41).
@@ -472,8 +472,8 @@ namespace Hst.Compression.Lha
                     }
 
                     header.HasUnixUidGid = true;
-                    header.UnixGid = DecodeUint16(raw, offset);
-                    header.UnixUid = DecodeUint16(raw, offset + 2);
+                    header.UnixGroupId = DecodeUint16(raw, offset);
+                    header.UnixUserId = DecodeUint16(raw, offset + 2);
                     break;
 
                 // Unix group header (0x52).
@@ -627,8 +627,8 @@ namespace Hst.Compression.Lha
             header.Timestamp = DecodeUnixTime(DecodeUint32(data, offset + 2));
 
             header.UnixPerms = DecodeUint16(data, offset + dataLen - 6);
-            header.UnixUid = DecodeUint16(data, offset + dataLen - 4);
-            header.UnixGid = DecodeUint16(data, offset + dataLen - 2);
+            header.UnixUserId = DecodeUint16(data, offset + dataLen - 4);
+            header.UnixGroupId = DecodeUint16(data, offset + dataLen - 2);
 
             header.HasUnixPerms = true;
             header.HasUnixUidGid = true;
@@ -654,7 +654,7 @@ namespace Hst.Compression.Lha
 
             // The contents resemble the contents of the OS-9 extended header.
             // We just want the permissions field.
-            header.OsType = Constants.EXTEND_OS9;
+            header.OsType = LhaOsType.Os9;
             header.Os9Perms = DecodeUint16(data, offset + 1);
             header.HasOs9Perms = true;
         }
@@ -675,12 +675,12 @@ namespace Hst.Compression.Lha
             // byte.
             switch (header.RawData[offset])
             {
-                case Constants.EXTEND_UNIX:
-                case Constants.EXTEND_OS68K:
+                case LhaOsType.Unix:
+                case LhaOsType.Os68K:
                     ProcessLevel0UnixArea(header, offset, dataLen);
                     break;
 
-                case Constants.EXTEND_OS9:
+                case LhaOsType.Os9:
                     ProcessLevel0Os9Area(header, offset, dataLen);
                     break;
             }
@@ -720,7 +720,7 @@ namespace Hst.Compression.Lha
             // Timestamp:
             header.Timestamp = DecodeFtime(DecodeUint32(header.RawData, 15));
 
-            header.Attribute = header.RawData[19];
+            header.Attributes = header.RawData[19];
 
             // Read path.  Check path length field - is the header long enough
             // to hold this full path?
@@ -732,7 +732,7 @@ namespace Hst.Compression.Lha
             }
 
             // OS type?
-            header.OsType = header.HeaderLevel == 0 ? Constants.EXTEND_GENERIC : header.RawData[24 + pathLen];
+            header.OsType = header.HeaderLevel == 0 ? LhaOsType.Generic : header.RawData[24 + pathLen];
 
             // Read filename field:
             ProcessLevel0Path(header, 22, pathLen);
@@ -786,7 +786,7 @@ namespace Hst.Compression.Lha
             // Timestamp. Unlike level 0/1, this is a Unix-style timestamp.
             header.Timestamp = DecodeUnixTime(DecodeUint32(header.RawData, 15));
 
-            header.Attribute = header.RawData[19];
+            header.Attributes = header.RawData[19];
 
             // CRC.
             header.HasCrc = true;
@@ -800,7 +800,7 @@ namespace Hst.Compression.Lha
             // the complete header length. As a result it's two bytes too
             // short. We can use the OS type field to detect these archives
             // and compensate.
-            if (header.OsType == Constants.EXTEND_OS68K)
+            if (header.OsType == LhaOsType.Os68K)
             {
                 await ExtendRawData(header, stream, 2);
             }
@@ -846,7 +846,7 @@ namespace Hst.Compression.Lha
             // Unix-style timestamp.
             header.Timestamp = DecodeUnixTime(DecodeUint32(header.RawData, 15));
 
-            header.Attribute = header.RawData[19];
+            header.Attributes = header.RawData[19];
 
             // CRC.
             header.HasCrc = true;
@@ -935,7 +935,7 @@ namespace Hst.Compression.Lha
         /// </summary>
         /// <param name="stream">Stream positioned at start of header.</param>
         /// <returns>Header read or null, if end of archive is reached.</returns>
-        public async Task<LzHeader> Read(Stream stream)
+        public async Task<LhaEntry> Read(Stream stream)
         {
             var headerOffset = stream.Position;
 
@@ -988,19 +988,19 @@ namespace Hst.Compression.Lha
             // as -lh0- rather than -lhd-. These look like regular files
             // without a filename, which is obviously incorrect. So we catch
             // this case and fix the compress_method field.
-            if (header.OsType == Constants.EXTEND_AMIGA
-                && header.CompressMethod == Constants.LZHUFF0_METHOD
+            if (header.OsType == LhaOsType.Amiga
+                && header.CompressMethod == LhaMethod.Lh0
                 && header.Length == 0 && header.Filename == null)
             {
-                header.CompressMethod = Constants.LZHDIRS_METHOD;
+                header.CompressMethod = LhaMethod.Lhd;
             }
 
             // Symlinks are stored using the same compression method
             // field string (-lhd-) as directories.
-            if (header.CompressMethod == Constants.LZHDIRS_METHOD
+            if (header.CompressMethod == LhaMethod.Lhd
                 && header.HasUnixPerms
                 && (header.Path != null || header.Filename != null)
-                && (header.UnixPerms & Constants.UNIX_FILE_TYPEMASK) == Constants.UNIX_FILE_SYMLINK)
+                && (header.UnixPerms & LhaUnixMode.TypeMask) == LhaUnixMode.Symlink)
             {
                 ParseSymlink(header);
             }
@@ -1013,7 +1013,7 @@ namespace Hst.Compression.Lha
 
             // Is this header generated by OS-9/68k LHA? If so, any Unix
             // permissions are actually OS-9 permissions.
-            if (header.OsType == Constants.EXTEND_OS68K && header.HasUnixPerms)
+            if (header.OsType == LhaOsType.Os68K && header.HasUnixPerms)
             {
                 header.Os9Perms = header.UnixPerms;
                 header.HasOs9Perms = true;
@@ -1036,10 +1036,10 @@ namespace Hst.Compression.Lha
             // with the -lh7- that everyone else uses. As a workaround, we detect
             // and rename the compression method to -lk7- so as to be able to
             // distinguish between the two formats.
-            if (header.HeaderLevel == 1 && header.OsType == Constants.EXTEND_LHARK
-                && header.CompressMethod == Constants.LZHUFF7_METHOD)
+            if (header.HeaderLevel == 1 && header.OsType == LhaOsType.Lhark
+                && header.CompressMethod == LhaMethod.Lh7)
             {
-                header.CompressMethod = Constants.LHARK7_METHOD;
+                header.CompressMethod = LhaMethod.Lk7;
             }
 
             // Windows timestamp is used for level 0 and 1 headers, which have ms-dos timestamps
@@ -1047,30 +1047,28 @@ namespace Hst.Compression.Lha
                 ? DecodeWindowsTime(header.WinModificationTime)
                 : header.Timestamp;
 
-            return new LzHeader
+            return new LhaEntry
             {
                 HeaderOffset = headerOffset,
                 HeaderSize = header.RawDataLen,
-                SizeFieldLength = header.HeaderLevel == 3 ? 4 : 2,
                 HeaderLevel = header.HeaderLevel,
                 Method = header.CompressMethod,
                 PackedSize = header.CompressedLength,
-                OriginalSize = header.Length,
-                Attribute = header.Attribute,
+                UnpackedSize = header.Length,
+                Attributes = header.Attributes,
                 Name = string.Concat(header.Path ?? string.Empty, header.Filename ?? string.Empty)
                     .Replace('/', '\\'),
-                RealName = header.SymlinkTarget?.Replace('/', '\\'),
+                LinkTarget = header.SymlinkTarget?.Replace('/', '\\'),
                 HasCrc = header.HasCrc,
                 Crc = (short)header.Crc,
                 HeaderCrc = (short)header.CommonCrc,
-                ExtendType = header.OsType,
-                MinorVersion = header.MinorVersion,
-                UnixLastModifiedStamp = timestamp,
+                OsType = header.OsType,
+                Date = timestamp,
                 UnixMode = header.HasUnixPerms
                     ? header.UnixPerms
-                    : (ushort)(Constants.UNIX_FILE_REGULAR | Constants.UNIX_RW_RW_RW),
-                UnixUid = header.UnixUid,
-                UnixGid = header.UnixGid,
+                    : (ushort)(LhaUnixMode.Regular | 0x1b6),
+                UnixUserId = header.UnixUserId,
+                UnixGroupId = header.UnixGroupId,
                 UnixUserName = header.UnixUsername,
                 UnixGroupName = header.UnixGroup
             };

@@ -13,23 +13,23 @@ namespace Hst.Compression.Tests.Lha
     public class GivenLhasaArchives
     {
         [Theory]
-        [InlineData("generated_lzs.lzs", Constants.LARC_METHOD)]
-        [InlineData("larc333_lz4.lzs", Constants.LARC4_METHOD)]
-        [InlineData("larc333_lz5.lzs", Constants.LARC5_METHOD)]
-        [InlineData("larc333_subdir.lzs", Constants.LARC4_METHOD)]
-        [InlineData("pmarc2_pm0.pma", Constants.PMARC0_METHOD)]
-        [InlineData("pmarc2_pm2.pma", Constants.PMARC2_METHOD)]
-        [InlineData("pmarc2_long.pma", Constants.PMARC2_METHOD)]
-        [InlineData("lharc113_lh1.lzh", Constants.LZHUFF1_METHOD)]
-        [InlineData("lha_amiga_122_lh1.lzh", Constants.LZHUFF1_METHOD)]
-        [InlineData("lha_amiga_122_lh4.lzh", Constants.LZHUFF4_METHOD)]
-        [InlineData("lha_unix114i_h0_subdir.lzh", Constants.LZHDIRS_METHOD)]
-        [InlineData("lha_unix114i_h1_subdir.lzh", Constants.LZHDIRS_METHOD)]
-        [InlineData("lha_unix114i_h2_subdir.lzh", Constants.LZHDIRS_METHOD)]
-        [InlineData("unlha32_h2_lhx.lzh", Constants.LZHUFFX_METHOD)]
-        [InlineData("lhark04d_lh7.lzh", Constants.LHARK7_METHOD)]
-        [InlineData("pmarc124_pm1.pma", Constants.PMARC1_METHOD)]
-        [InlineData("pmarc124_mtcd.pma", Constants.PMARC1_METHOD)]
+        [InlineData("generated_lzs.lzs", LhaMethod.Lzs)]
+        [InlineData("larc333_lz4.lzs", LhaMethod.Lz4)]
+        [InlineData("larc333_lz5.lzs", LhaMethod.Lz5)]
+        [InlineData("larc333_subdir.lzs", LhaMethod.Lz4)]
+        [InlineData("pmarc2_pm0.pma", LhaMethod.Pm0)]
+        [InlineData("pmarc2_pm2.pma", LhaMethod.Pm2)]
+        [InlineData("pmarc2_long.pma", LhaMethod.Pm2)]
+        [InlineData("lharc113_lh1.lzh", LhaMethod.Lh1)]
+        [InlineData("lha_amiga_122_lh1.lzh", LhaMethod.Lh1)]
+        [InlineData("lha_amiga_122_lh4.lzh", LhaMethod.Lh4)]
+        [InlineData("lha_unix114i_h0_subdir.lzh", LhaMethod.Lhd)]
+        [InlineData("lha_unix114i_h1_subdir.lzh", LhaMethod.Lhd)]
+        [InlineData("lha_unix114i_h2_subdir.lzh", LhaMethod.Lhd)]
+        [InlineData("unlha32_h2_lhx.lzh", LhaMethod.Lhx)]
+        [InlineData("lhark04d_lh7.lzh", LhaMethod.Lk7)]
+        [InlineData("pmarc124_pm1.pma", LhaMethod.Pm1)]
+        [InlineData("pmarc124_mtcd.pma", LhaMethod.Pm1)]
         public async Task WhenExtractEntriesThenCrcIsValidAndEntryStreamBytesAreEqual(string fileName,
             string expectedMethod)
         {
@@ -50,7 +50,7 @@ namespace Hst.Compression.Tests.Lha
                 // act - extract entry, crc is verified
                 using var expectedStream = new MemoryStream();
                 lhaArchive.Extract(entry, expectedStream);
-                Assert.Equal(entry.OriginalSize, expectedStream.Length);
+                Assert.Equal(entry.UnpackedSize, expectedStream.Length);
 
                 // act - read entry stream with small buffer to read across decode boundaries
                 await using var entryStream = lhaArchive.OpenEntry(entry);
@@ -70,7 +70,7 @@ namespace Hst.Compression.Tests.Lha
         [Theory]
         [InlineData("lha_unix114i_h1_symlink.lzh")]
         [InlineData("lha_unix114i_h2_symlink.lzh")]
-        public async Task WhenReadSymbolicLinkEntryThenNameAndRealNameAreSplit(string fileName)
+        public async Task WhenReadSymbolicLinkEntryThenNameAndLinkTargetAreSplit(string fileName)
         {
             // arrange - open lha file
             var path = Path.Combine("TestData", "Lha", "lhasa", fileName);
@@ -82,10 +82,10 @@ namespace Hst.Compression.Tests.Lha
 
             // assert - symbolic link entry has name and real name
             var entry = Assert.Single(entries);
-            Assert.Equal(Constants.LZHDIRS_METHOD, entry.Method);
-            Assert.Equal(Constants.UNIX_FILE_SYMLINK, entry.UnixMode & Constants.UNIX_FILE_SYMLINK);
+            Assert.Equal(LhaMethod.Lhd, entry.Method);
+            Assert.Equal(LhaUnixMode.Symlink, entry.UnixMode & LhaUnixMode.Symlink);
             Assert.False(string.IsNullOrEmpty(entry.Name));
-            Assert.False(string.IsNullOrEmpty(entry.RealName));
+            Assert.False(string.IsNullOrEmpty(entry.LinkTarget));
 
             // act - extract symbolic link entry, which has no data
             using var output = new MemoryStream();

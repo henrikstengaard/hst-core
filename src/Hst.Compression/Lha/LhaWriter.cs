@@ -10,8 +10,8 @@ namespace Hst.Compression.Lha
     {
         private const int FILE_ATTRIBUTE = 0x20;
         private const int DIRECTORY_ATTRIBUTE = 0x10;
-        private const ushort FILE_MODE = Constants.UNIX_FILE_REGULAR | 0x1a4; /* 0644 */
-        private const ushort DIRECTORY_MODE = Constants.UNIX_FILE_DIRECTORY | 0x1ed; /* 0755 */
+        private const ushort FILE_MODE = LhaUnixMode.Regular | 0x1a4; /* 0644 */
+        private const ushort DIRECTORY_MODE = LhaUnixMode.Directory | 0x1ed; /* 0755 */
 
         private readonly Stream stream;
         private readonly LhaWriterOptions options;
@@ -65,29 +65,28 @@ namespace Hst.Compression.Lha
         {
             switch (method)
             {
-                case Constants.LZHUFF0_METHOD:
-                case Constants.LZHUFF4_METHOD:
-                case Constants.LZHUFF5_METHOD:
-                case Constants.LZHUFF6_METHOD:
-                case Constants.LZHUFF7_METHOD:
+                case LhaMethod.Lh0:
+                case LhaMethod.Lh4:
+                case LhaMethod.Lh5:
+                case LhaMethod.Lh6:
+                case LhaMethod.Lh7:
                     return;
                 default:
                     throw new NotSupportedException($"Compression method \"{method}\" is not supported");
             }
         }
 
-        private LzHeader CreateHeader(string name, DateTime lastModified)
+        private LhaEntry CreateHeader(string name, DateTime lastModified)
         {
-            return new LzHeader
+            return new LhaEntry
             {
-                Method = Constants.LZHUFF0_METHOD,
-                Attribute = FILE_ATTRIBUTE,
+                Method = LhaMethod.Lh0,
+                Attributes = FILE_ATTRIBUTE,
                 HeaderLevel = options.HeaderLevel,
-                SizeFieldLength = 2,
                 Name = name.Replace('/', '\\'),
                 HasCrc = true,
-                ExtendType = options.GenericFormat ? Constants.EXTEND_GENERIC : Constants.EXTEND_UNIX,
-                UnixLastModifiedStamp = lastModified,
+                OsType = options.GenericFormat ? LhaOsType.Generic : LhaOsType.Unix,
+                Date = lastModified,
                 UnixMode = FILE_MODE
             };
         }
@@ -105,7 +104,7 @@ namespace Hst.Compression.Lha
             }
         }
 
-        private void WriteHeader(LzHeader header, Stream output)
+        private void WriteHeader(LhaEntry header, Stream output)
         {
             header.HeaderSize = headerWriter.Write(header, output);
         }
@@ -116,7 +115,7 @@ namespace Hst.Compression.Lha
         /// <param name="name">Name of directory. Path separators '/' and '\' are supported.</param>
         /// <param name="lastModified">Last modified date of directory. Default is now.</param>
         /// <returns>Header of entry added.</returns>
-        public LzHeader AddDirectory(string name, DateTime? lastModified = null)
+        public LhaEntry AddDirectory(string name, DateTime? lastModified = null)
         {
             EnsureWritable();
 
@@ -126,8 +125,8 @@ namespace Hst.Compression.Lha
             }
 
             var header = CreateHeader(name, lastModified ?? DateTime.Now);
-            header.Method = Constants.LZHDIRS_METHOD;
-            header.Attribute = DIRECTORY_ATTRIBUTE;
+            header.Method = LhaMethod.Lhd;
+            header.Attributes = DIRECTORY_ATTRIBUTE;
             header.UnixMode = DIRECTORY_MODE;
             if (!header.Name.EndsWith("\\", StringComparison.Ordinal))
             {
@@ -150,7 +149,7 @@ namespace Hst.Compression.Lha
         /// <param name="lastModified">Last modified date of file. Default is now.</param>
         /// <param name="method">Compression method to use, overrides method from options.</param>
         /// <returns>Header of entry added.</returns>
-        public LzHeader AddFile(string name, Stream data, DateTime? lastModified = null, string method = null)
+        public LhaEntry AddFile(string name, Stream data, DateTime? lastModified = null, string method = null)
         {
             EnsureWritable();
 
@@ -186,7 +185,7 @@ namespace Hst.Compression.Lha
                 }
 
                 var header = CreateHeader(name, lastModified ?? DateTime.Now);
-                header.OriginalSize = size;
+                header.UnpackedSize = size;
                 header.HeaderOffset = stream.CanSeek ? stream.Position : 0;
 
                 // validate header before data is written
@@ -233,12 +232,12 @@ namespace Hst.Compression.Lha
         /// Write data compressed with method or stored, if compressed data isn't smaller than original data.
         /// Header is updated with method, crc and sizes.
         /// </summary>
-        private static void WriteData(LzHeader header, Stream data, Stream output, string method, long size)
+        private static void WriteData(LhaEntry header, Stream data, Stream output, string method, long size)
         {
             var dataOffset = data.Position;
             var outputOffset = output.Position;
 
-            if (method != Constants.LZHUFF0_METHOD)
+            if (method != LhaMethod.Lh0)
             {
                 // compressed data is limited to less than original size, so stored data overwrites it completely
                 var result = LhEncoder.Create(method).Encode(data, output, size, size - 1);
@@ -270,7 +269,7 @@ namespace Hst.Compression.Lha
                 remaining -= bytesRead;
             }
 
-            header.Method = Constants.LZHUFF0_METHOD;
+            header.Method = LhaMethod.Lh0;
             header.Crc = (short)crc;
             header.PackedSize = size;
         }

@@ -16,11 +16,11 @@
             const string testData = "This is a test\n";
 
             // arrange - lh0 uncompressed entry (bytes extracted from header end to next header)
-            var header = new LzHeader
+            var header = new LhaEntry
             {
-                Method = Constants.LZHUFF0_METHOD,
+                Method = LhaMethod.Lh0,
                 Name = "test.txt",
-                OriginalSize = 15,
+                UnpackedSize = 15,
                 PackedSize = 15,
                 HasCrc = true,
                 Crc = 17248
@@ -40,11 +40,11 @@
         public async Task WhenExtractCompressedLh5DataThenBytesAreEqual()
         {
             // arrange - lh5 compressed entry (bytes extracted from header end to next header)
-            var header = new LzHeader
+            var header = new LhaEntry
             {
-                Method = Constants.LZHUFF5_METHOD,
+                Method = LhaMethod.Lh5,
                 Name = "test1.info",
-                OriginalSize = 900,
+                UnpackedSize = 900,
                 PackedSize = 435,
                 HasCrc = true,
                 Crc = 11704
@@ -68,11 +68,11 @@
         {
             // arrange - lh0 entry with invalid crc
             var data = Encoding.ASCII.GetBytes("This is a test\n");
-            var header = new LzHeader
+            var header = new LhaEntry
             {
-                Method = Constants.LZHUFF0_METHOD,
+                Method = LhaMethod.Lh0,
                 Name = "test.txt",
-                OriginalSize = data.Length,
+                UnpackedSize = data.Length,
                 PackedSize = data.Length,
                 HasCrc = true,
                 Crc = 1234
@@ -89,11 +89,11 @@
         {
             // arrange - entry with custom method and decoder adding 1 to each byte
             var data = new byte[] { 1, 2, 3, 4 };
-            var header = new LzHeader
+            var header = new LhaEntry
             {
                 Method = "-xx1-",
                 Name = "test.bin",
-                OriginalSize = data.Length,
+                UnpackedSize = data.Length,
                 PackedSize = data.Length,
                 HasCrc = false
             };
@@ -110,15 +110,15 @@
         }
 
         [Theory]
-        [InlineData(Constants.LZHUFF2_METHOD)]
-        [InlineData(Constants.LZHUFF3_METHOD)]
+        [InlineData(LhaMethod.Lh2)]
+        [InlineData(LhaMethod.Lh3)]
         public void WhenExtractLh2OrLh3ThenNotSupportedExceptionIsThrown(string method)
         {
-            var header = new LzHeader
+            var header = new LhaEntry
             {
                 Method = method,
                 Name = "test.bin",
-                OriginalSize = 10,
+                UnpackedSize = 10,
                 PackedSize = 10
             };
 
@@ -130,11 +130,11 @@
         [Fact]
         public void WhenExtractUnknownMethodThenNotSupportedExceptionIsThrown()
         {
-            var header = new LzHeader
+            var header = new LhaEntry
             {
                 Method = "-zz9-",
                 Name = "test.bin",
-                OriginalSize = 10,
+                UnpackedSize = 10,
                 PackedSize = 10
             };
 

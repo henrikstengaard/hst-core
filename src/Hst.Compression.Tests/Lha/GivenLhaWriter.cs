@@ -16,8 +16,8 @@ namespace Hst.Compression.Tests.Lha
         public static IEnumerable<object[]> MethodsAndHeaderLevels =>
             from method in new[]
             {
-                Constants.LZHUFF0_METHOD, Constants.LZHUFF4_METHOD,
-                Constants.LZHUFF5_METHOD, Constants.LZHUFF6_METHOD, Constants.LZHUFF7_METHOD
+                LhaMethod.Lh0, LhaMethod.Lh4,
+                LhaMethod.Lh5, LhaMethod.Lh6, LhaMethod.Lh7
             }
             from headerLevel in new[] { 0, 1, 2 }
             select new object[] { method, headerLevel };
@@ -58,11 +58,11 @@ namespace Hst.Compression.Tests.Lha
             // assert - directories are read
             Assert.Equal(files.Count + 2, entries.Count);
             var dirEntry = Assert.Single(entries, x => x.Name == @"dir\");
-            Assert.Equal(Constants.LZHDIRS_METHOD, dirEntry.Method);
+            Assert.Equal(LhaMethod.Lhd, dirEntry.Method);
             Assert.Equal(headerLevel, dirEntry.HeaderLevel);
-            Assert.Equal(0x10, dirEntry.Attribute);
+            Assert.Equal(0x10, dirEntry.Attributes);
             var subDirEntry = Assert.Single(entries, x => x.Name == @"dir\sub\");
-            Assert.Equal(Constants.LZHDIRS_METHOD, subDirEntry.Method);
+            Assert.Equal(LhaMethod.Lhd, subDirEntry.Method);
 
             // assert - files are read with equal data
             foreach (var file in files)
@@ -70,8 +70,8 @@ namespace Hst.Compression.Tests.Lha
                 var name = file.Key.Replace('/', '\\');
                 var entry = Assert.Single(entries, x => x.Name == name);
                 Assert.Equal(headerLevel, entry.HeaderLevel);
-                Assert.Equal(file.Value.Length, entry.OriginalSize);
-                Assert.Equal(LastModified, entry.UnixLastModifiedStamp);
+                Assert.Equal(file.Value.Length, entry.UnpackedSize);
+                Assert.Equal(LastModified, entry.Date);
 
                 using var output = new MemoryStream();
                 lhaArchive.Extract(entry, output);
@@ -83,15 +83,15 @@ namespace Hst.Compression.Tests.Lha
             var largeEntry = entries.First(x => x.Name == @"dir\sub\large.bin");
             Assert.Equal(method, textEntry.Method);
             Assert.Equal(method, largeEntry.Method);
-            if (method != Constants.LZHUFF0_METHOD)
+            if (method != LhaMethod.Lh0)
             {
-                Assert.True(textEntry.PackedSize < textEntry.OriginalSize / 2);
-                Assert.True(largeEntry.PackedSize < largeEntry.OriginalSize);
+                Assert.True(textEntry.PackedSize < textEntry.UnpackedSize / 2);
+                Assert.True(largeEntry.PackedSize < largeEntry.UnpackedSize);
             }
 
             // assert - incompressible and empty data is stored
-            Assert.Equal(Constants.LZHUFF0_METHOD, entries.First(x => x.Name == @"dir\random.bin").Method);
-            Assert.Equal(Constants.LZHUFF0_METHOD, entries.First(x => x.Name == "empty.txt").Method);
+            Assert.Equal(LhaMethod.Lh0, entries.First(x => x.Name == @"dir\random.bin").Method);
+            Assert.Equal(LhaMethod.Lh0, entries.First(x => x.Name == "empty.txt").Method);
         }
 
         [Theory]
@@ -118,8 +118,8 @@ namespace Hst.Compression.Tests.Lha
 
             // assert - entry is read with equal data
             Assert.Equal(@"dir\file.txt", entry.Name);
-            Assert.Equal(Constants.EXTEND_GENERIC, entry.ExtendType);
-            Assert.Equal(Constants.LZHUFF5_METHOD, entry.Method);
+            Assert.Equal(LhaOsType.Generic, entry.OsType);
+            Assert.Equal(LhaMethod.Lh5, entry.Method);
             using var output = new MemoryStream();
             lhaArchive.Extract(entry, output);
             Assert.Equal(data, output.ToArray());
@@ -146,8 +146,8 @@ namespace Hst.Compression.Tests.Lha
 
             // assert - entries are read with equal data
             Assert.Equal(2, entries.Count);
-            Assert.Equal(Constants.LZHUFF5_METHOD, entries[0].Method);
-            Assert.Equal(Constants.LZHUFF0_METHOD, entries[1].Method);
+            Assert.Equal(LhaMethod.Lh5, entries[0].Method);
+            Assert.Equal(LhaMethod.Lh0, entries[1].Method);
             using var textOutput = new MemoryStream();
             lhaArchive.Extract(entries[0], textOutput);
             Assert.Equal(text, textOutput.ToArray());
@@ -162,7 +162,7 @@ namespace Hst.Compression.Tests.Lha
             // arrange - write lha archive
             var text = CreateText(30000);
             using var archiveStream = new MemoryStream();
-            LzHeader header;
+            LhaEntry header;
             using (var lhaWriter = new LhaWriter(archiveStream, LhaWriterOptions.Default, true))
             {
                 header = lhaWriter.AddFile("text.txt", new MemoryStream(text), LastModified);
@@ -231,11 +231,11 @@ namespace Hst.Compression.Tests.Lha
         }
 
         [Theory]
-        [InlineData(Constants.LZHUFF1_METHOD)]
-        [InlineData(Constants.LZHUFF2_METHOD)]
-        [InlineData(Constants.LZHUFF3_METHOD)]
-        [InlineData(Constants.LARC5_METHOD)]
-        [InlineData(Constants.PMARC2_METHOD)]
+        [InlineData(LhaMethod.Lh1)]
+        [InlineData(LhaMethod.Lh2)]
+        [InlineData(LhaMethod.Lh3)]
+        [InlineData(LhaMethod.Lz5)]
+        [InlineData(LhaMethod.Pm2)]
         public void WhenWriteWithUnsupportedCompressionMethodThenExceptionIsThrown(string method)
         {
             using var archiveStream = new MemoryStream();

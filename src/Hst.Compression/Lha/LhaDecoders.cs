@@ -12,27 +12,27 @@ namespace Hst.Compression.Lha
         private static readonly IDictionary<string, LhaDecoderFactory> BuiltInDecoders =
             new Dictionary<string, LhaDecoderFactory>
             {
-                { Constants.LZHUFF0_METHOD, (input, _) => new NullDecoder(input) },
-                { Constants.LARC4_METHOD, (input, _) => new NullDecoder(input) },
-                { Constants.PMARC0_METHOD, (input, _) => new NullDecoder(input) },
-                { Constants.LZHDIRS_METHOD, (input, _) => new NullDecoder(input) },
-                { Constants.LZHUFF1_METHOD, (input, _) => new Lh1Decoder(input) },
-                { Constants.LZHUFF4_METHOD, (input, _) => LhNewDecoder.CreateLh5(input) },
-                { Constants.LZHUFF5_METHOD, (input, _) => LhNewDecoder.CreateLh5(input) },
-                { Constants.LZHUFF6_METHOD, (input, _) => LhNewDecoder.CreateLh6(input) },
-                { Constants.LZHUFF7_METHOD, (input, _) => LhNewDecoder.CreateLh7(input) },
-                { Constants.LZHUFFX_METHOD, (input, _) => LhNewDecoder.CreateLhx(input) },
-                { Constants.LHARK7_METHOD, (input, _) => LhNewDecoder.CreateLk7(input) },
-                { Constants.LARC_METHOD, (input, _) => new LzsDecoder(input) },
-                { Constants.LARC5_METHOD, (input, _) => new Lz5Decoder(input) },
-                { Constants.PMARC1_METHOD, (input, _) => new Pm1Decoder(input) },
-                { Constants.PMARC2_METHOD, (input, _) => new Pm2Decoder(input) },
+                { LhaMethod.Lh0, (input, _) => new NullDecoder(input) },
+                { LhaMethod.Lz4, (input, _) => new NullDecoder(input) },
+                { LhaMethod.Pm0, (input, _) => new NullDecoder(input) },
+                { LhaMethod.Lhd, (input, _) => new NullDecoder(input) },
+                { LhaMethod.Lh1, (input, _) => new Lh1Decoder(input) },
+                { LhaMethod.Lh4, (input, _) => LhNewDecoder.CreateLh5(input) },
+                { LhaMethod.Lh5, (input, _) => LhNewDecoder.CreateLh5(input) },
+                { LhaMethod.Lh6, (input, _) => LhNewDecoder.CreateLh6(input) },
+                { LhaMethod.Lh7, (input, _) => LhNewDecoder.CreateLh7(input) },
+                { LhaMethod.Lhx, (input, _) => LhNewDecoder.CreateLhx(input) },
+                { LhaMethod.Lk7, (input, _) => LhNewDecoder.CreateLk7(input) },
+                { LhaMethod.Lzs, (input, _) => new LzsDecoder(input) },
+                { LhaMethod.Lz5, (input, _) => new Lz5Decoder(input) },
+                { LhaMethod.Pm1, (input, _) => new Pm1Decoder(input) },
+                { LhaMethod.Pm2, (input, _) => new Pm2Decoder(input) },
             };
 
         /// <summary>
         /// Create decoder for header method using decoders from options or built-in decoders.
         /// </summary>
-        public static ILhaDecoder Create(Stream packedData, LzHeader header, LhaOptions options)
+        public static ILhaDecoder Create(Stream packedData, LhaEntry header, LhaOptions options)
         {
             if (options != null && options.Decoders.TryGetValue(header.Method, out var factory))
             {

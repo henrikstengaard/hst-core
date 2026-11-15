@@ -10,7 +10,7 @@
     {
         private readonly Stream stream;
         private readonly HeaderReader headerReader;
-        private LzHeader current;
+        private LhaEntry current;
 
         public LhaReader(Stream stream, LhaOptions options)
         {
@@ -23,7 +23,7 @@
         /// Read header of next entry.
         /// </summary>
         /// <returns>Header of next entry or null, if end of archive is reached.</returns>
-        public async Task<LzHeader> Read()
+        public async Task<LhaEntry> Read()
         {
             if (current != null)
             {

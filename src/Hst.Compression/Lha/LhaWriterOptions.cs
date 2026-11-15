@@ -33,7 +33,7 @@ namespace Hst.Compression.Lha
         {
             Encoding = Encoding.UTF8;
             HeaderLevel = 2;
-            Method = Constants.LZHUFF5_METHOD;
+            Method = LhaMethod.Lh5;
             GenericFormat = false;
         }
 
