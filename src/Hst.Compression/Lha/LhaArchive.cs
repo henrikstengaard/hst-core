@@ -17,7 +17,7 @@
         public LhaArchive(Stream stream, LhaOptions options)
         {
             this.stream = stream;
-            this.options = options;
+            this.options = options ?? LhaOptions.Default;
         }
 
         public async Task<IEnumerable<LzHeader>> Entries()
@@ -60,7 +60,7 @@
         /// <returns>Entry stream.</returns>
         public LhaEntryStream OpenEntry(LzHeader header)
         {
-            return new LhaEntryStream(stream, header);
+            return new LhaEntryStream(stream, header, options);
         }
 
         public void Dispose()

@@ -26,6 +26,10 @@ namespace Hst.Compression.Tests.Lha
         [InlineData("lha_unix114i_h0_subdir.lzh", Constants.LZHDIRS_METHOD)]
         [InlineData("lha_unix114i_h1_subdir.lzh", Constants.LZHDIRS_METHOD)]
         [InlineData("lha_unix114i_h2_subdir.lzh", Constants.LZHDIRS_METHOD)]
+        [InlineData("unlha32_h2_lhx.lzh", Constants.LZHUFFX_METHOD)]
+        [InlineData("lhark04d_lh7.lzh", Constants.LHARK7_METHOD)]
+        [InlineData("pmarc124_pm1.pma", Constants.PMARC1_METHOD)]
+        [InlineData("pmarc124_mtcd.pma", Constants.PMARC1_METHOD)]
         public async Task WhenExtractEntriesThenCrcIsValidAndEntryStreamBytesAreEqual(string fileName,
             string expectedMethod)
         {

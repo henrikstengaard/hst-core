@@ -5,7 +5,8 @@ namespace Hst.Compression.Lha
 
     /// <summary>
     /// Read-only stream decompressing (extracting) a lha entry on demand as it's read.
-    /// Supports all lha methods: lh0, lh1, lh2, lh3, lh4, lh5, lh6, lh7, lzs, lz4, lz5, lhd, pm0 and pm2.
+    /// Supports methods: -lh0-, -lh1-, -lh4-, -lh5-, -lh6-, -lh7-, -lhx-, -lk7-, -lzs-, -lz4-, -lz5-, -lhd-, -pm0-,
+    /// -pm1- and -pm2-. Additional methods can be supported by adding decoders to <see cref="LhaOptions.Decoders"/>.
     /// </summary>
     /// <remarks>
     /// If the archive stream is seekable, the archive stream position is restored before each read, so multiple
@@ -16,25 +17,9 @@ namespace Hst.Compression.Lha
     /// </remarks>
     public class LhaEntryStream : Stream
     {
-        private readonly Stream stream;
         private readonly LzHeader header;
-        private readonly bool verifyCrc;
-        private readonly CrcIo crcIo;
-        private readonly bool isStored;
-        private readonly byte[] storedBuffer;
-
-        // sliding dictionary decode state, see slide.c decode
-        private readonly IDecoder decoder;
-        private readonly Lha lha;
-        private readonly BitIo bitIo;
-        private readonly byte[] dtext;
-        private readonly int dicsiz1;
-        private readonly int adjust;
-        private int loc;
-        private int matchRemaining;
-        private int matchPos;
-
-        private long streamPosition;
+        private readonly ILhaDecoder decoder;
+        private ushort crc;
         private long position;
         private bool verified;
 
@@ -43,9 +28,18 @@ namespace Hst.Compression.Lha
         /// </summary>
         /// <param name="stream">Archive stream entry header was read from.</param>
         /// <param name="header">Header of entry to read.</param>
-        /// <param name="extractBrokenArchive">Extract archives created by old LHa for UNIX with a bug.</param>
-        public LhaEntryStream(Stream stream, LzHeader header, bool extractBrokenArchive = false)
-            : this(stream, header, header.HeaderOffset + header.HeaderSize, extractBrokenArchive, true)
+        public LhaEntryStream(Stream stream, LzHeader header) : this(stream, header, LhaOptions.Default)
+        {
+        }
+
+        /// <summary>
+        /// Create entry stream for lha entry in archive stream.
+        /// </summary>
+        /// <param name="stream">Archive stream entry header was read from.</param>
+        /// <param name="header">Header of entry to read.</param>
+        /// <param name="options">Options with additional decoders.</param>
+        public LhaEntryStream(Stream stream, LzHeader header, LhaOptions options)
+            : this(stream, header, header == null ? 0 : header.HeaderOffset + header.HeaderSize, options)
         {
         }
 
@@ -55,10 +49,8 @@ namespace Hst.Compression.Lha
         /// <param name="stream">Stream to read entry data from.</param>
         /// <param name="header">Header of entry to read.</param>
         /// <param name="dataOffset">Offset in stream where entry data starts. Ignored for non-seekable streams.</param>
-        /// <param name="extractBrokenArchive">Extract archives created by old LHa for UNIX with a bug.</param>
-        /// <param name="verifyCrc">Verify CRC and throw exception, when end of entry is reached.</param>
-        internal LhaEntryStream(Stream stream, LzHeader header, long dataOffset, bool extractBrokenArchive,
-            bool verifyCrc)
+        /// <param name="options">Options with additional decoders.</param>
+        internal LhaEntryStream(Stream stream, LzHeader header, long dataOffset, LhaOptions options)
         {
             if (stream == null)
             {
@@ -75,67 +67,12 @@ namespace Hst.Compression.Lha
                 throw new ArgumentException("Stream must be readable", nameof(stream));
             }
 
-            LhExt.EnsureSupportedMethod(header);
-
-            this.stream = stream;
             this.header = header;
-            this.verifyCrc = verifyCrc;
-            crcIo = new CrcIo();
-            crcIo.InitializeCrc();
-            streamPosition = dataOffset;
+            var packedData = new PackedDataStream(stream, dataOffset, header.PackedSize);
+            decoder = LhaDecoders.Create(packedData, header, options);
+            crc = 0;
             position = 0;
             verified = false;
-
-            var method = Extract.GetMethodNum(header.Method);
-            var dicBit = Extract.GetDicBit(header.Method);
-
-            if (dicBit == 0)
-            {
-                /* LZHUFF0_DICBIT or LARC4_DICBIT or PMARC0_DICBIT or LZHDIRS */
-                isStored = true;
-                storedBuffer = new byte[Constants.BUFFERSIZE];
-                return;
-            }
-
-            SeekStream();
-
-            var dicsiz = 1 << dicBit;
-            dtext = new byte[dicsiz];
-            for (var i = 0; i < dicsiz; i++)
-            {
-                /* LHa for UNIX (autoconf) had a fatal bug since version
-                   1.14i-ac20030713 (slide.c revision 1.20).
-
-                   This bug is possible to make a broken archive, proper LHA
-                   cannot extract it (probably it report CRC error).
-
-                   If the option "--extract-broken-archive" specified, extract
-                   the broken archive made by old LHa for UNIX. */
-                dtext[i] = (byte)(extractBrokenArchive ? 0 : ' ');
-            }
-
-            decoder = Slide.GetDecoder(method);
-            bitIo = new BitIo(stream, (int)header.OriginalSize, (int)header.PackedSize);
-            lha = new Lha(dicBit, bitIo, crcIo)
-            {
-                dtext = dtext,
-                loc = 0,
-                decode_count = 0
-            };
-
-            decoder.DecodeStart(lha);
-            UpdateStreamPosition();
-
-            dicsiz1 = dicsiz - 1;
-            adjust = 256 - Constants.THRESHOLD;
-            if (method == Constants.LARC_METHOD_NUM || method == Constants.PMARC2_METHOD_NUM)
-            {
-                adjust = 256 - 2;
-            }
-
-            loc = 0;
-            matchRemaining = 0;
-            matchPos = 0;
         }
 
         /// <summary>
@@ -146,29 +83,7 @@ namespace Hst.Compression.Lha
         /// <summary>
         /// CRC-16 of data read so far.
         /// </summary>
-        public ushort Crc => (ushort)crcIo.crc;
-
-        /// <summary>
-        /// Number of compressed bytes read from archive stream so far.
-        /// </summary>
-        public long ReadSize => isStored ? position : header.PackedSize - bitIo.compsize;
-
-        private void SeekStream()
-        {
-            // restore archive stream position, so other reads of archive stream doesn't affect entry stream
-            if (stream.CanSeek)
-            {
-                stream.Seek(streamPosition, SeekOrigin.Begin);
-            }
-        }
-
-        private void UpdateStreamPosition()
-        {
-            if (stream.CanSeek)
-            {
-                streamPosition = stream.Position;
-            }
-        }
+        public ushort Crc => crc;
 
         public override int Read(byte[] buffer, int offset, int count)
         {
@@ -182,6 +97,9 @@ namespace Hst.Compression.Lha
                 throw new ArgumentOutOfRangeException(nameof(count));
             }
 
+            // When we reach the end of the stream, we must truncate the
+            // decompressed data at exactly the right point (original size),
+            // or we may read a few extra false byte(s) by mistake.
             var remaining = header.OriginalSize - position;
             if (count > remaining)
             {
@@ -194,81 +112,19 @@ namespace Hst.Compression.Lha
                 return 0;
             }
 
-            SeekStream();
+            var bytesRead = decoder.Read(buffer, offset, count);
+            if (bytesRead == 0)
+            {
+                throw new IOException(
+                    $"Unexpected end of compressed data for \"{header.Name}\" at {position} of {header.OriginalSize} bytes");
+            }
 
-            var bytesRead = isStored ? ReadStored(buffer, offset, count) : ReadDecoded(buffer, offset, count);
-
-            UpdateStreamPosition();
+            crc = Crc16.Update(crc, buffer, offset, bytesRead);
             position += bytesRead;
 
             if (position >= header.OriginalSize)
             {
                 Verify();
-            }
-
-            return bytesRead;
-        }
-
-        private int ReadStored(byte[] buffer, int offset, int count)
-        {
-            var bytesRead = 0;
-            while (bytesRead < count)
-            {
-                var size = Math.Min(count - bytesRead, storedBuffer.Length);
-                var read = stream.Read(storedBuffer, 0, size);
-                if (read == 0)
-                {
-                    throw new IOException("file read error");
-                }
-
-                Array.Copy(storedBuffer, 0, buffer, offset + bytesRead, read);
-                crcIo.calccrc(storedBuffer, 0, read);
-                bytesRead += read;
-            }
-
-            return bytesRead;
-        }
-
-        private int ReadDecoded(byte[] buffer, int offset, int count)
-        {
-            var bytesRead = 0;
-            while (bytesRead < count)
-            {
-                byte c;
-                if (matchRemaining > 0)
-                {
-                    c = dtext[matchPos++ & dicsiz1];
-                    matchRemaining--;
-                }
-                else
-                {
-                    // decoders lzs, lz5, pm2 and lh2 uses current dictionary position and decoded bytes count
-                    lha.loc = loc;
-                    lha.decode_count = position + bytesRead;
-
-                    var code = decoder.DecodeC(lha);
-                    if (code < 256)
-                    {
-                        c = (byte)code;
-                    }
-                    else
-                    {
-                        var matchLength = code - adjust;
-                        var matchOffset = decoder.DecodeP(lha) + 1;
-                        matchPos = (loc - matchOffset) & dicsiz1;
-                        c = dtext[matchPos++ & dicsiz1];
-                        matchRemaining = matchLength - 1;
-                    }
-                }
-
-                dtext[loc++] = c;
-                if (loc > dicsiz1)
-                {
-                    loc = 0;
-                }
-
-                crcIo.UPDATE_CRC(c);
-                buffer[offset + bytesRead++] = c;
             }
 
             return bytesRead;
@@ -283,17 +139,7 @@ namespace Hst.Compression.Lha
 
             verified = true;
 
-            if (!verifyCrc)
-            {
-                return;
-            }
-
-            if (isStored && header.PackedSize != position)
-            {
-                throw new IOException($"Read size {position} doesnt match packed size {header.PackedSize}");
-            }
-
-            if (header.HasCrc && (ushort)crcIo.crc != (ushort)header.Crc)
+            if (header.HasCrc && crc != (ushort)header.Crc)
             {
                 throw new IOException($"CRC error: \"{header.Name}\"");
             }

@@ -1,7 +1,11 @@
 ﻿namespace Hst.Compression.Lha
 {
+    /// <summary>
+    /// Constants for lha archives: compression methods, operating system types and unix file modes.
+    /// </summary>
     public static class Constants
     {
+        // operating system types (extend type) stored in headers
         public const byte EXTEND_GENERIC = 0;
         public const byte EXTEND_UNIX = (byte)'U';
         public const byte EXTEND_MSDOS = (byte)'M';
@@ -9,36 +13,40 @@
         public const byte EXTEND_OS9 = (byte)'9';
         public const byte EXTEND_OS2 = (byte)'2';
         public const byte EXTEND_OS68K = (byte)'K';
-        public const byte EXTEND_OS386 = (byte)'3'; /* OS-9000??? */
+        public const byte EXTEND_OS386 = (byte)'3';
         public const byte EXTEND_HUMAN = (byte)'H';
         public const byte EXTEND_CPM = (byte)'C';
         public const byte EXTEND_FLEX = (byte)'F';
         public const byte EXTEND_RUNSER = (byte)'R';
         public const byte EXTEND_AMIGA = (byte)'A';
-
-        /* this OS type is not official */
+        public const byte EXTEND_ATARI = (byte)'a';
+        public const byte EXTEND_WIN95 = (byte)'w';
+        public const byte EXTEND_WINNT = (byte)'W';
         public const byte EXTEND_TOWNSOS = (byte)'T';
-        public const byte EXTEND_XOSK = (byte)'X'; /* OS-9 for X68000 (?) */
+        public const byte EXTEND_XOSK = (byte)'X';
         public const byte EXTEND_JAVA = (byte)'J';
+        public const byte EXTEND_LHARK = (byte)' ';
 
-        public const int UNIX_FILE_TYPEMASK = 0170000;
-        public const int UNIX_FILE_REGULAR = 0x8000; // 0100000 = bits 1000 000 000 000 000;
-        public const int UNIX_FILE_DIRECTORY = 0x4000; // octal 0040000 = bits 0100 000 000 000 000;
-        public const int UNIX_FILE_SYMLINK = 0xa000; // otcal 0120000 = bits 1010 000 000 000 000;
-        public const int UNIX_SETUID = 0x800; // octal 0004000 = bits 0000 100 000 000 000;
-        public const int UNIX_SETGID = 0x400; // octal 0002000 = bits 0000 010 000 000 000;
-        public const int UNIX_STICKYBIT = 0x200; // octal 0001000 = bits 0000 001 000 000 000;
-        public const int UNIX_OWNER_READ_PERM = 0x100; // octal 0000400 = bits 0000 000 100 000 000;
-        public const int UNIX_OWNER_WRITE_PERM = 0x80; // octal 0000200 = bits 0000 000 010 000 000;
-        public const int UNIX_OWNER_EXEC_PERM = 0x40; // octal 0000100 = bits 0000 000 001 000 000;
-        public const int UNIX_GROUP_READ_PERM = 0x20; // octal 0000040 = bits 0000 000 000 100 000;
-        public const int UNIX_GROUP_WRITE_PERM = 0x10; // octal 0000020 = bits 0000 000 000 010 000;
-        public const int UNIX_GROUP_EXEC_PERM = 0x8; // octal 0000010 = bits 0000 000 000 001 000;
-        public const int UNIX_OTHER_READ_PERM = 0x4; // octal 0000004 = bits 0000 000 000 000 100; 
-        public const int UNIX_OTHER_WRITE_PERM = 0x2; // octal 0000002 = bits 0000 000 000 000 010;
-        public const int UNIX_OTHER_EXEC_PERM = 0x1; // octal 0000001 = bits 0000 000 000 000 001;
-        public const int UNIX_RW_RW_RW = 0x1b6; // octal 0000666 = bits 0000 000 110 110 110;
+        // unix file types and permissions
+        public const int UNIX_FILE_TYPEMASK = 0xf000;
+        public const int UNIX_FILE_REGULAR = 0x8000;
+        public const int UNIX_FILE_DIRECTORY = 0x4000;
+        public const int UNIX_FILE_SYMLINK = 0xa000;
+        public const int UNIX_SETUID = 0x800;
+        public const int UNIX_SETGID = 0x400;
+        public const int UNIX_STICKYBIT = 0x200;
+        public const int UNIX_OWNER_READ_PERM = 0x100;
+        public const int UNIX_OWNER_WRITE_PERM = 0x80;
+        public const int UNIX_OWNER_EXEC_PERM = 0x40;
+        public const int UNIX_GROUP_READ_PERM = 0x20;
+        public const int UNIX_GROUP_WRITE_PERM = 0x10;
+        public const int UNIX_GROUP_EXEC_PERM = 0x8;
+        public const int UNIX_OTHER_READ_PERM = 0x4;
+        public const int UNIX_OTHER_WRITE_PERM = 0x2;
+        public const int UNIX_OTHER_EXEC_PERM = 0x1;
+        public const int UNIX_RW_RW_RW = 0x1b6;
 
+        // compression methods
         public const string LZHUFF0_METHOD = "-lh0-";
         public const string LZHUFF1_METHOD = "-lh1-";
         public const string LZHUFF2_METHOD = "-lh2-";
@@ -47,82 +55,14 @@
         public const string LZHUFF5_METHOD = "-lh5-";
         public const string LZHUFF6_METHOD = "-lh6-";
         public const string LZHUFF7_METHOD = "-lh7-";
+        public const string LZHUFFX_METHOD = "-lhx-";
+        public const string LHARK7_METHOD = "-lk7-";
         public const string LARC_METHOD = "-lzs-";
         public const string LARC5_METHOD = "-lz5-";
         public const string LARC4_METHOD = "-lz4-";
         public const string LZHDIRS_METHOD = "-lhd-";
         public const string PMARC0_METHOD = "-pm0-";
+        public const string PMARC1_METHOD = "-pm1-";
         public const string PMARC2_METHOD = "-pm2-";
-        
-        internal const int LZHUFF0_DICBIT = 0;      /* no compress */
-        internal const int LZHUFF1_DICBIT = 12;      /* 2^12 =  4KB sliding dictionary */
-        internal const int LZHUFF2_DICBIT = 13;      /* 2^13 =  8KB sliding dictionary */
-        internal const int LZHUFF3_DICBIT = 13;      /* 2^13 =  8KB sliding dictionary */
-        internal const int LZHUFF4_DICBIT = 12;      /* 2^12 =  4KB sliding dictionary */
-        internal const int LZHUFF5_DICBIT = 13;      /* 2^13 =  8KB sliding dictionary */
-        internal const int LZHUFF6_DICBIT = 15;      /* 2^15 = 32KB sliding dictionary */
-        internal const int LZHUFF7_DICBIT = 16;      /* 2^16 = 64KB sliding dictionary */
-        internal const int LARC_DICBIT = 11;      /* 2^11 =  2KB sliding dictionary */
-        internal const int LARC5_DICBIT = 12;      /* 2^12 =  4KB sliding dictionary */
-        internal const int LARC4_DICBIT = 0;      /* no compress */
-        internal const int PMARC0_DICBIT = 0;      /* no compress */
-        internal const int PMARC2_DICBIT = 13;      /* 2^13 =  8KB sliding dictionary */
-        
-//#ifdef SUPPORT_LH7
-        internal const int MAX_DICBIT = LZHUFF7_DICBIT; /* lh7 use 16bits */
-// #endif
-// #ifndef SUPPORT_LH7
-// #define MAX_DICBIT LZHUFF6_DICBIT /* lh6 use 15bits */
-// #endif
-
-        internal const int MAX_DICSIZ = (1 << MAX_DICBIT);
-
-        internal const byte UCHAR_MAX = (1<<8)-1;
-        internal const int CHAR_BIT = 8;
-        
-        /* slide.c */
-        internal const short MAXMATCH = 256; /* formerly F (not more than UCHAR_MAX + 1) */
-        internal const byte THRESHOLD = 3;   /* choose optimal value */
-
-        internal const byte USHRT_BIT = 16; /* (CHAR_BIT * sizeof(ushort)) */
-        internal const byte NP = (MAX_DICBIT + 1);
-        internal const byte NT = (USHRT_BIT + 3);
-        internal const short NC = UCHAR_MAX + MAXMATCH + 2 - THRESHOLD;
-
-        internal const byte PBIT = 5;       /* smallest integer such that (1 << PBIT) > * NP */
-        internal const byte TBIT = 5;       /* smallest integer such that (1 << TBIT) > * NT */
-        internal const byte CBIT = 9;       /* smallest integer such that (1 << CBIT) > * NC */ 
-        
-        /*      #if NT > NP #define NPT NT #else #define NPT NP #endif  */
-        internal const byte NPT = 0x80;
-
-
-        internal const int BUFFERSIZE = 2048;
-
-        internal const int LZHUFF0_METHOD_NUM = 0;
-        internal const int LZHUFF1_METHOD_NUM = 1;
-        internal const int LZHUFF2_METHOD_NUM = 2;
-        internal const int LZHUFF3_METHOD_NUM = 3;
-        internal const int LZHUFF4_METHOD_NUM = 4;
-        internal const int LZHUFF5_METHOD_NUM = 5;
-        internal const int LZHUFF6_METHOD_NUM = 6;
-        internal const int LZHUFF7_METHOD_NUM = 7;
-        internal const int LARC_METHOD_NUM = 8;
-        internal const int LARC5_METHOD_NUM = 9;
-        internal const int LARC4_METHOD_NUM = 10;
-        internal const int LZHDIRS_METHOD_NUM = 11;
-        internal const int PMARC0_METHOD_NUM = 12;
-        internal const int PMARC2_METHOD_NUM = 13;
-
-        internal const int EXTRABITS = 8;               /* >= log2(F-THRESHOLD+258-N1) */
-        internal const int BUFBITS = 16;              /* >= log2(MAXBUF) */
-        internal const int LENFIELD = 4;         /* bit size of length field for tree output */
-
-        internal const int N_CHAR = 256 + 60 - THRESHOLD + 1;
-        internal const int TREESIZE_C = N_CHAR * 2;
-        internal const int TREESIZE_P = 128 * 2;
-        internal const int TREESIZE = TREESIZE_C + TREESIZE_P;
-        internal const int ROOT_C = 0;
-        internal const int ROOT_P = TREESIZE_C;
     }
 }

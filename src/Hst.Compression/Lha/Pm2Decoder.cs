@@ -1,463 +1,475 @@
-﻿/***********************************************************
-	pm2.c -- extract pmext2 coding
-***********************************************************/
-/*
-  Copyright (c) 1999 Maarten ter Huurne
-
-  Permission is hereby granted, free of charge, to any person
-  obtaining a copy of this software and associated documentation files
-  (the "Software"), to deal in the Software without restriction,
-  including without limitation the rights to use, copy, modify, merge,
-  publish, distribute, sublicense, and/or sell copies of the Software,
-  and to permit persons to whom the Software is furnished to do so,
-  subject to the following conditions:
-
-  The above copyright notice and this permission notice shall be
-  included in all copies or substantial portions of the Software.
-
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
-  BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
-  ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-  CONNECTION WITH THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+// Ported from Lhasa lib/pm2_decoder.c, https://github.com/fragglet/lhasa
+//
+// Copyright (c) 2011, 2012, Simon Howard
+//
+// Permission to use, copy, modify, and/or distribute this software
+// for any purpose with or without fee is hereby granted, provided
+// that the above copyright notice and this permission notice appear
+// in all copies.
+//
+// THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+// WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+// WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+// AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR
+// CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+// LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+// NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+// CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+//
 namespace Hst.Compression.Lha
 {
     using System.IO;
 
     /// <summary>
-    /// Decoder for -pm2- method (PMarc2). Combines pm2.c, pm2hist.c and pm2tree.c.
+    /// Decoder for PMarc -pm2- compression format.  PMarc is a variant
+    /// of LHA commonly used on the MSX computer architecture.
     /// </summary>
-    internal class Pm2Decoder : IDecoder
+    internal class Pm2Decoder : BlockDecoder
     {
-        // {decode_c_pm2, decode_p_pm2, decode_start_pm2}
-        private const int Offset = 0x100 - 2;
+        // Size of the ring buffer (in bytes) used to store past history
+        // for copies.
+        private const int RING_BUFFER_SIZE = 8192;
 
-        private static readonly int[] HistoryBits = { 3, 3, 4, 5, 5, 5, 6, 6 };
-        private static readonly int[] HistoryBase = { 0, 8, 16, 32, 64, 96, 128, 192 };
-        private static readonly int[] RepeatBits = { 3, 3, 5, 6, 7, 0 };
-        private static readonly int[] RepeatBase = { 17, 25, 33, 65, 129, 256 };
+        // Maximum number of bytes that might be placed in the output buffer
+        // from a single call to lha_pm2_decoder_read (largest copy size).
+        private const int OUTPUT_BUFFER_SIZE = 256;
 
-        private long nextcount;
-        private int lastupdate;
-        private int dicsiz1;
-        private int gettree1;
+        // Number of tree elements in the code tree.
+        private const int CODE_TREE_ELEMENTS = 65;
 
-        // pm2hist.c: circular double-linked list
-        private readonly byte[] histPrev = new byte[0x100];
-        private readonly byte[] histNext = new byte[0x100];
-        private byte lastbyte;
+        // Number of tree elements in the offset tree.
+        private const int OFFSET_TREE_ELEMENTS = 17;
 
-        // pm2tree.c
-        private readonly Tree tree1 = new Tree(32);
-        private readonly Tree tree2 = new Tree(8);
-        private byte tree1bound;
-        private byte mindepth;
-
-        private class Tree
+        private enum Pm2RebuildState
         {
-            public byte Root;
-            public readonly byte[] LeftArr;
-            public readonly byte[] RightArr;
-
-            public Tree(int size)
-            {
-                LeftArr = new byte[size];
-                RightArr = new byte[size];
-            }
+            Unbuilt, // At start of stream
+            Build1, // After 1KiB
+            Build2, // After 2KiB
+            Build3, // After 4KiB
+            Continuing, // 8KiB onwards...
         }
 
-        public void DecodeStart(Lha lha)
+        // Decode table for history value. Characters that appeared recently in
+        // the history are more likely than ones that appeared a long time ago,
+        // so the history value is huffman coded so that small values require
+        // fewer bits. The history value is then used to search within the
+        // history linked list to get the actual character.
+        private static readonly VariableLengthTable[] HistoryDecode =
         {
-            dicsiz1 = (1 << lha.dicbit) - 1;
-            lha.bitIo.InitGetBits();
-            HistInit();
-            nextcount = 0;
-            lastupdate = 0;
-            lha.bitIo.GetBits(1); /* discard bit */
-        }
+            new VariableLengthTable(0, 3), //   0 + (1 << 3) =   8
+            new VariableLengthTable(8, 3), //   8 + (1 << 3) =  16
+            new VariableLengthTable(16, 4), //  16 + (1 << 4) =  32
+            new VariableLengthTable(32, 5), //  32 + (1 << 5) =  64
+            new VariableLengthTable(64, 5), //  64 + (1 << 5) =  96
+            new VariableLengthTable(96, 5), //  96 + (1 << 5) = 128
+            new VariableLengthTable(128, 6), // 128 + (1 << 6) = 192
+            new VariableLengthTable(192, 6), // 192 + (1 << 6) = 256
+        };
 
-        public ushort DecodeC(Lha lha)
+        // Decode table for copies. As with history_decode[], small copies
+        // are more common, and require fewer bits.
+        private static readonly VariableLengthTable[] CopyDecode =
         {
-            /* various admin: */
-            while (lastupdate != lha.loc)
+            new VariableLengthTable(17, 3), //  17 + (1 << 3) =  25
+            new VariableLengthTable(25, 3), //  25 + (1 << 3) =  33
+            new VariableLengthTable(33, 5), //  33 + (1 << 5) =  65
+            new VariableLengthTable(65, 6), //  65 + (1 << 6) = 129
+            new VariableLengthTable(129, 7), // 129 + (1 << 7) = 256
+            new VariableLengthTable(256, 0), // 256 (unique value)
+        };
+
+        private readonly BitStreamReader bitStreamReader;
+
+        // State of decode tree.
+        private Pm2RebuildState treeState;
+
+        // Number of bytes until we initiate a tree rebuild.
+        private int treeRebuildRemaining;
+
+        // History ring buffer, for copies:
+        private readonly byte[] ringbuf = new byte[RING_BUFFER_SIZE];
+        private int ringbufPos;
+
+        // History linked list, for adaptively encoding byte values.
+        private readonly HistoryLinkedList historyList = new HistoryLinkedList();
+
+        // Array representing the huffman tree used for representing
+        // code values. A given node of the tree has children
+        // code_tree[n] and code_tree[n + 1].  code_tree[0] is the
+        // root node.
+        private readonly ushort[] codeTree = new ushort[CODE_TREE_ELEMENTS];
+
+        // If false, we don't need an offset tree:
+        private bool needOffsetTree;
+
+        // Array representing huffman tree used to look up offsets.
+        // Same format as code_tree[].
+        private readonly ushort[] offsetTree = new ushort[OFFSET_TREE_ELEMENTS];
+
+        public Pm2Decoder(Stream input) : base(OUTPUT_BUFFER_SIZE)
+        {
+            bitStreamReader = new BitStreamReader(input);
+
+            // Tree has not been built yet.  It needs to be built on
+            // the first call to read().
+            treeState = Pm2RebuildState.Unbuilt;
+            treeRebuildRemaining = 0;
+
+            // Initialize ring buffer contents.
+            for (var i = 0; i < RING_BUFFER_SIZE; i++)
             {
-                HistUpdate(lha.dtext[lastupdate]);
-                lastupdate = (lastupdate + 1) & dicsiz1;
+                ringbuf[i] = (byte)' ';
             }
 
-            while (lha.decode_count >= nextcount)
+            ringbufPos = 0;
+
+            // Initialize the lookup trees to a known state.
+            TreeDecoder.InitTree(codeTree, CODE_TREE_ELEMENTS);
+            TreeDecoder.InitTree(offsetTree, OFFSET_TREE_ELEMENTS);
+        }
+
+        // Read the list of code lengths to use for the code tree and construct
+        // the code_tree structure.
+        private bool ReadCodeTree()
+        {
+            var codeLengths = new byte[31];
+
+            // Read the number of codes in the tree.
+            var numCodes = bitStreamReader.ReadBits(5);
+
+            // Read min_code_length, which is used as an offset.
+            var minCodeLength = bitStreamReader.ReadBits(3);
+
+            if (minCodeLength < 0 || numCodes < 0)
             {
-                /* Actually it will never loop, because decode_count doesn't grow that fast.
-                   However, this is the way LHA does it.
-                   Probably other encoding methods can have repeats larger than 256 bytes.
-                   Note: LHA puts this code in decode_p...
-                */
-                switch (nextcount)
+                return false;
+            }
+
+            // Code values > 28 can potentially lead to an overflow of the
+            // copy_decode table (GHSA-j2m3-h278-rrg9). We prevent this by
+            // checking there are no more than 29 codes (the 28/29
+            // difference here is not an error; 0-28 is 29 codes).
+            if (numCodes > 29)
+            {
+                return false;
+            }
+
+            // Store flag variable indicating whether we want to read
+            // the offset tree as well.
+            needOffsetTree = numCodes >= 10 && !(numCodes == 29 && minCodeLength == 0);
+
+            // Minimum length of zero means a tree containing a single code.
+            if (minCodeLength == 0)
+            {
+                TreeDecoder.SetTreeSingle(codeTree, numCodes - 1);
+                return true;
+            }
+
+            // How many bits are used to represent each table entry?
+            var lengthBits = bitStreamReader.ReadBits(3);
+
+            if (lengthBits < 0)
+            {
+                return false;
+            }
+
+            // Read table of code lengths:
+            for (var i = 0; i < numCodes; ++i)
+            {
+                // Read a table entry.  A value of zero represents an
+                // unused code.  Otherwise the value represents
+                // an offset from the minimum length (previously read).
+                var val = bitStreamReader.ReadBits(lengthBits);
+
+                if (val < 0)
                 {
-                    case 0x0000:
-                        MakeTree1(lha);
-                        MakeTree2(lha, 5);
-                        nextcount = 0x0400;
-                        break;
-                    case 0x0400:
-                        MakeTree2(lha, 6);
-                        nextcount = 0x0800;
-                        break;
-                    case 0x0800:
-                        MakeTree2(lha, 7);
-                        nextcount = 0x1000;
-                        break;
-                    case 0x1000:
-                        if (lha.bitIo.GetBits(1) != 0)
-                        {
-                            MakeTree1(lha);
-                        }
+                    return false;
+                }
 
-                        MakeTree2(lha, 8);
-                        nextcount = 0x2000;
-                        break;
-                    default: /* 0x2000, 0x3000, 0x4000, ... */
-                        if (lha.bitIo.GetBits(1) != 0)
-                        {
-                            MakeTree1(lha);
-                            MakeTree2(lha, 8);
-                        }
+                codeLengths[i] = val == 0 ? (byte)0 : (byte)(minCodeLength + val - 1);
+            }
 
-                        nextcount += 0x1000;
-                        break;
+            // Build the tree.
+            TreeDecoder.BuildTree(codeTree, CODE_TREE_ELEMENTS, codeLengths, numCodes);
+
+            return true;
+        }
+
+        // Read the code lengths for the offset tree and construct the offset
+        // tree lookup table.
+        private bool ReadOffsetTree(int numOffsets)
+        {
+            var offsetLengths = new byte[8];
+
+            if (!needOffsetTree)
+            {
+                return true;
+            }
+
+            // Read 'num_offsets' 3-bit length values.  For each offset
+            // value 'off', offset_lengths[off] is the length of the
+            // code that will represent 'off', or 0 if it will not
+            // appear within the tree.
+            var numCodes = 0;
+            var singleOffset = 0;
+
+            for (var off = 0; off < numOffsets; ++off)
+            {
+                var len = bitStreamReader.ReadBits(3);
+
+                if (len < 0)
+                {
+                    return false;
+                }
+
+                offsetLengths[off] = (byte)len;
+
+                // Track how many actual codes were in the tree.
+                if (len != 0)
+                {
+                    singleOffset = off;
+                    ++numCodes;
                 }
             }
 
-            gettree1 = TreeGet(lha, tree1); /* value preserved for decode_p */
-            if (gettree1 >= 29)
+            // If there was a single code, this is a single node tree.
+            if (numCodes == 1)
             {
-                throw new IOException("Bad table");
+                TreeDecoder.SetTreeSingle(offsetTree, singleOffset);
+                return true;
             }
 
-            /* direct value (ret <= UCHAR_MAX) */
-            if (gettree1 < 8)
-            {
-                return HistLookup(HistoryBase[gettree1] + lha.bitIo.GetBits(HistoryBits[gettree1]));
-            }
+            // Build the tree.
+            TreeDecoder.BuildTree(offsetTree, OFFSET_TREE_ELEMENTS, offsetLengths, numOffsets);
 
-            /* repeats: (ret > UCHAR_MAX) */
-            if (gettree1 < 23)
-            {
-                return (ushort)(Offset + 2 + (gettree1 - 8));
-            }
-
-            return (ushort)(Offset + RepeatBase[gettree1 - 23] + lha.bitIo.GetBits(RepeatBits[gettree1 - 23]));
+            return true;
         }
 
-        public ushort DecodeP(Lha lha)
+        // Rebuild the decode trees used to compress data.  This is called when
+        // decoder->tree_rebuild_remaining reaches zero.
+        private void RebuildTree()
         {
-            /* gettree1 value preserved from decode_c */
-            int nbits, delta;
-            if (gettree1 == 8)
+            switch (treeState)
             {
-                /* 2-byte repeat with offset 0..63 */
-                nbits = 6;
-                delta = 0;
+                // Initial tree build, from start of stream:
+                case Pm2RebuildState.Unbuilt:
+                    ReadCodeTree();
+                    ReadOffsetTree(5);
+                    treeState = Pm2RebuildState.Build1;
+                    treeRebuildRemaining = 1024;
+                    break;
+
+                // Tree rebuild after 1KiB of data has been read:
+                case Pm2RebuildState.Build1:
+                    ReadOffsetTree(6);
+                    treeState = Pm2RebuildState.Build2;
+                    treeRebuildRemaining = 1024;
+                    break;
+
+                // Tree rebuild after 2KiB of data has been read:
+                case Pm2RebuildState.Build2:
+                    ReadOffsetTree(7);
+                    treeState = Pm2RebuildState.Build3;
+                    treeRebuildRemaining = 2048;
+                    break;
+
+                // Tree rebuild after 4KiB of data has been read:
+                case Pm2RebuildState.Build3:
+                    if (bitStreamReader.ReadBit() == 1)
+                    {
+                        ReadCodeTree();
+                    }
+
+                    ReadOffsetTree(8);
+                    treeState = Pm2RebuildState.Continuing;
+                    treeRebuildRemaining = 4096;
+                    break;
+
+                // Tree rebuild after 8KiB of data has been read,
+                // and every 4KiB after that:
+                case Pm2RebuildState.Continuing:
+                    if (bitStreamReader.ReadBit() == 1)
+                    {
+                        ReadCodeTree();
+                        ReadOffsetTree(8);
+                    }
+
+                    treeRebuildRemaining = 4096;
+                    break;
             }
-            else if (gettree1 < 28)
+        }
+
+        private void OutputByte(byte[] buf, ref int bufLen, byte b)
+        {
+            // Add to history ring buffer.
+            ringbuf[ringbufPos] = b;
+            ringbufPos = (ringbufPos + 1) % RING_BUFFER_SIZE;
+
+            // Add to output buffer.
+            buf[bufLen] = b;
+            ++bufLen;
+
+            // Update history chain.
+            historyList.Update(b);
+
+            // Count down until it is time to perform a rebuild of the
+            // lookup trees.
+            --treeRebuildRemaining;
+
+            if (treeRebuildRemaining == 0)
             {
-                /* n-byte repeat with offset 0..8191 */
-                var gettree2 = TreeGet(lha, tree2);
-                if (gettree2 == 0)
+                RebuildTree();
+            }
+        }
+
+        // Read a single byte from the input stream and add it to the output
+        // buffer.
+        private void ReadSingleByte(int code, byte[] buf, ref int bufLen)
+        {
+            var offset = VariableLengthTable.Decode(bitStreamReader, HistoryDecode, code);
+
+            if (offset < 0)
+            {
+                return;
+            }
+
+            var b = historyList.Find((byte)offset);
+            OutputByte(buf, ref bufLen, b);
+        }
+
+        // Calculate how many bytes from history to copy:
+        private int HistoryGetCount(int code)
+        {
+            // How many bytes to copy?  A small value represents the
+            // literal number of bytes to copy; larger values are a header
+            // for a variable length value to be decoded.
+            if (code < 15)
+            {
+                return code + 2;
+            }
+
+            return VariableLengthTable.Decode(bitStreamReader, CopyDecode, code - 15);
+        }
+
+        // Calculate the offset within history at which to start copying:
+        private int HistoryGetOffset(int code)
+        {
+            int bits;
+            var result = 0;
+
+            // Calculate number of bits to read.
+
+            // Code of zero indicates a simple 6-bit value giving the offset.
+            if (code == 0)
+            {
+                bits = 6;
+            }
+
+            // Mid-range encoded offset value.
+            // Read a code using the offset tree, indicating the length
+            // of the offset value to follow.  The code indicates the
+            // number of bits (values 0-7 = 6-13 bits).
+            else if (code < 20)
+            {
+                var val = TreeDecoder.ReadFromTree(bitStreamReader, offsetTree);
+
+                if (val < 0)
                 {
-                    nbits = 6;
-                    delta = 0;
+                    return -1;
+                }
+
+                if (val == 0)
+                {
+                    bits = 6;
                 }
                 else
                 {
-                    /* 1..7 */
-                    nbits = 5 + gettree2;
-                    delta = 1 << nbits;
+                    bits = val + 5;
+                    result = 1 << bits;
                 }
+            }
+
+            // Large copy values start from offset zero.
+            else
+            {
+                return 0;
+            }
+
+            // Read a number of bits representing the offset value.  The
+            // number of length of this value is variable, and is calculated
+            // above.
+            var value = bitStreamReader.ReadBits(bits);
+
+            if (value < 0)
+            {
+                return -1;
+            }
+
+            result += value;
+
+            return result;
+        }
+
+        private void CopyFromHistory(int code, byte[] buf, ref int bufLen)
+        {
+            // Read number of bytes to copy and offset within history to copy
+            // from.
+            var toCopy = HistoryGetCount(code);
+            var offset = HistoryGetOffset(code);
+
+            if (toCopy < 0 || offset < 0)
+            {
+                return;
+            }
+
+            // Sanity check to prevent the potential for buffer overflow.
+            if (toCopy > OUTPUT_BUFFER_SIZE)
+            {
+                return;
+            }
+
+            // Perform copy.
+            var start = (uint)(ringbufPos + RING_BUFFER_SIZE - 1 - offset);
+
+            for (var i = 0; i < toCopy; ++i)
+            {
+                var pos = (start + (uint)i) % RING_BUFFER_SIZE;
+
+                OutputByte(buf, ref bufLen, ringbuf[pos]);
+            }
+        }
+
+        // Decode data and store it into buf[], returning the number of
+        // bytes decoded.
+        protected override int ReadBlock(byte[] buf)
+        {
+            // On first pass through, build initial lookup trees.
+            if (treeState == Pm2RebuildState.Unbuilt)
+            {
+                // First bit in stream is discarded?
+                bitStreamReader.ReadBit();
+                RebuildTree();
+            }
+
+            var result = 0;
+
+            var code = TreeDecoder.ReadFromTree(bitStreamReader, codeTree);
+
+            if (code < 0)
+            {
+                return 0;
+            }
+
+            if (code < 8)
+            {
+                ReadSingleByte(code, buf, ref result);
             }
             else
             {
-                /* 256 bytes repeat with offset 0 */
-                nbits = 0;
-                delta = 0;
+                CopyFromHistory(code - 8, buf, ref result);
             }
 
-            return (ushort)(delta + lha.bitIo.GetBits(nbits));
-        }
-
-        /* pm2hist.c */
-        private void HistInit()
-        {
-            for (var i = 0; i < 0x100; i++)
-            {
-                histPrev[(0xFF + i) & 0xFF] = (byte)i;
-                histNext[(0x01 + i) & 0xFF] = (byte)i;
-            }
-
-            histPrev[0x7F] = 0x00;
-            histNext[0x00] = 0x7F;
-            histPrev[0xDF] = 0x80;
-            histNext[0x80] = 0xDF;
-            histPrev[0x9F] = 0xE0;
-            histNext[0xE0] = 0x9F;
-            histPrev[0x1F] = 0xA0;
-            histNext[0xA0] = 0x1F;
-            histPrev[0xFF] = 0x20;
-            histNext[0x20] = 0xFF;
-            lastbyte = 0x20;
-        }
-
-        private byte HistLookup(int n)
-        {
-            var direction = histPrev;
-            if (n >= 0x80)
-            {
-                /* Speedup: If you have to process more than half the ring,
-                   it's faster to walk the other way around.
-                 */
-                direction = histNext;
-                n = 0x100 - n;
-            }
-
-            var i = lastbyte;
-            for (; n != 0; n--)
-            {
-                i = direction[i];
-            }
-
-            return i;
-        }
-
-        private void HistUpdate(byte data)
-        {
-            if (data == lastbyte)
-            {
-                return;
-            }
-
-            /* detach from old position */
-            var oldNext = histNext[data];
-            var oldPrev = histPrev[data];
-            histPrev[oldNext] = oldPrev;
-            histNext[oldPrev] = oldNext;
-
-            /* attach to new next */
-            var newNext = histNext[lastbyte];
-            histPrev[newNext] = data;
-            histNext[data] = newNext;
-
-            /* attach to new prev */
-            histPrev[data] = lastbyte;
-            histNext[lastbyte] = data;
-
-            lastbyte = data;
-        }
-
-        /* pm2tree.c */
-        private void MakeTree1(Lha lha)
-        {
-            var table1 = new byte[32];
-
-            tree1bound = (byte)lha.bitIo.GetBits(5);
-            mindepth = (byte)lha.bitIo.GetBits(3);
-            if (mindepth == 0)
-            {
-                TreeSetSingle(tree1, (byte)(tree1bound - 1));
-            }
-            else
-            {
-                var nbits = lha.bitIo.GetBits(3);
-                for (var i = 0; i < tree1bound; i++)
-                {
-                    var x = lha.bitIo.GetBits(nbits);
-                    table1[i] = (byte)(x == 0 ? 0 : x - 1 + mindepth);
-                }
-
-                TreeRebuild(tree1, tree1bound, mindepth, 31, table1);
-            }
-        }
-
-        private void MakeTree2(Lha lha, int tree2bound) /* in use: 5 <= tree2bound <= 8 */
-        {
-            if (tree1bound < 10)
-            {
-                /* tree1bound=1..8: character only, offset value is no needed. */
-                /* tree1bound=9: offset value is not encoded by Huffman tree */
-                return;
-            }
-
-            if (tree1bound == 29 && mindepth == 0)
-            {
-                /* the length value is just 256 and offset value is just 0 */
-                return;
-            }
-
-            /* need to build tree2 for offset value */
-            var table2 = new byte[8];
-            for (var i = 0; i < tree2bound; i++)
-            {
-                table2[i] = (byte)lha.bitIo.GetBits(3);
-            }
-
-            var index = 0;
-            var count = 0;
-            for (var i = 0; i < tree2bound; i++)
-            {
-                if (table2[i] != 0)
-                {
-                    index = i;
-                    count++;
-                }
-            }
-
-            if (count == 1)
-            {
-                TreeSetSingle(tree2, (byte)index);
-            }
-            else if (count > 1)
-            {
-                TreeRebuild(tree2, (byte)tree2bound, 1, 7, table2);
-            }
-            // Note: count == 0 is possible!
-            //       Excluding that possibility was a bug in version 1.
-        }
-
-        private static int TreeGet(Lha lha, Tree t)
-        {
-            int i = t.Root;
-            while (i < 0x80)
-            {
-                i = lha.bitIo.GetBits(1) == 0 ? t.LeftArr[i] : t.RightArr[i];
-            }
-
-            return i & 0x7F;
-        }
-
-        private static void TreeSetSingle(Tree t, byte value)
-        {
-            t.Root = (byte)(128 | value);
-        }
-
-        private static void TreeRebuild(Tree t, byte bound, byte mindepth, byte maxdepth, byte[] table)
-        {
-            var parentarr = new byte[32];
-            int i;
-
-            /* validate table */
-            var count = new uint[32];
-            for (i = 0; i < bound; i++)
-            {
-                if (table[i] > maxdepth)
-                {
-                    throw new IOException("Bad table");
-                }
-
-                count[table[i]]++;
-            }
-
-            var total = 0.0;
-            for (i = mindepth; i <= maxdepth; i++)
-            {
-                // note: long is used as 1 << 31 overflows int, in c it's compared as unsigned int
-                var maxLeaves = 1L << i;
-                if (count[i] > maxLeaves)
-                {
-                    throw new IOException("Bad table");
-                }
-
-                total += 1.0 / maxLeaves * count[i];
-            }
-
-            // ReSharper disable once CompareOfFloatsByEqualityOperator
-            if (total != 1.0)
-            {
-                /* check the Kraft's inequality */
-                throw new IOException("Bad table");
-            }
-
-            /* initialize tree */
-            t.Root = 0;
-            for (i = 0; i < bound; i++)
-            {
-                t.LeftArr[i] = 0;
-                t.RightArr[i] = 0;
-                parentarr[i] = 0;
-            }
-
-            /* build tree */
-            for (i = 0; i < mindepth - 1; i++)
-            {
-                t.LeftArr[i] = (byte)(i + 1);
-                parentarr[i + 1] = (byte)i;
-            }
-
-            var curr = mindepth - 1;
-            var empty = (int)mindepth;
-            for (var d = mindepth; d <= maxdepth; d++)
-            {
-                for (i = 0; i < bound; i++)
-                {
-                    if (table[i] != d)
-                    {
-                        continue;
-                    }
-
-                    if (t.LeftArr[curr] == 0)
-                    {
-                        t.LeftArr[curr] = (byte)(i | 128);
-                        continue;
-                    }
-
-                    t.RightArr[curr] = (byte)(i | 128);
-                    var n = 0;
-                    while (t.RightArr[curr] != 0)
-                    {
-                        if (curr == 0)
-                        {
-                            /* root? -> done */
-                            return;
-                        }
-
-                        curr = parentarr[curr];
-                        n++;
-                    }
-
-                    t.RightArr[curr] = (byte)empty;
-                    for (;;)
-                    {
-                        parentarr[empty] = (byte)curr;
-                        curr = empty;
-                        empty++;
-
-                        n--;
-                        if (n == 0)
-                        {
-                            break;
-                        }
-
-                        t.LeftArr[curr] = (byte)empty;
-                    }
-                }
-
-                if (t.LeftArr[curr] == 0)
-                {
-                    t.LeftArr[curr] = (byte)empty;
-                }
-                else
-                {
-                    t.RightArr[curr] = (byte)empty;
-                }
-
-                parentarr[empty] = (byte)curr;
-                curr = empty;
-                empty++;
-            }
-
-            /* unreachable */
-            throw new IOException("Bad table");
+            return result;
         }
     }
 }
