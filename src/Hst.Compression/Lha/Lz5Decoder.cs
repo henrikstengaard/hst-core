@@ -11,7 +11,7 @@ namespace Hst.Compression.Lha
     /// <summary>
     /// Decoder for -lz5- method (LArc).
     /// </summary>
-    public class Lz5Decoder : IDecoder
+    internal class Lz5Decoder : IDecoder
     {
         // {decode_c_lz5, decode_p_lz5, decode_start_lz5},
         private const int MAGIC5 = 19;

@@ -2,7 +2,7 @@
 {
     using System;
 
-    public static class DateHelper
+    internal static class DateHelper
     {
         private static int SubBits(long n, int off, int len) => (int)(((n) >> (off)) & ((1 << (len)) - 1));
 

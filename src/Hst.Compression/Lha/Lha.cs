@@ -12,7 +12,7 @@
 */
 namespace Hst.Compression.Lha
 {
-    public class Lha
+    internal class Lha
     {
         public readonly int dicbit;
         public const int N1 = 286;             /* alphabet size */

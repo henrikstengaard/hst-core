@@ -16,7 +16,7 @@ namespace Hst.Compression.Lha
     using System.Threading.Tasks;
     using Core.Extensions;
 
-    public class Header
+    internal class Header
     {
         private const int I_HEADER_SIZE = 0; /* level 0,1,2   */
         private const int I_HEADER_CHECKSUM = 1; /* level 0,1     */

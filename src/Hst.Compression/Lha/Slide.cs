@@ -11,7 +11,7 @@ namespace Hst.Compression.Lha
     using System;
     using System.IO;
 
-    public static class Slide
+    internal static class Slide
     {
         private const int TXTSIZ = Constants.MAX_DICSIZ * 2 + Constants.MAXMATCH;
         private const int HSHSIZ = 1 << 15;

@@ -11,7 +11,7 @@ namespace Hst.Compression.Lha
     /// <summary>
     /// extract static Huffman coding
     /// </summary>
-    public static class SHuf
+    internal static class SHuf
     {
     /* lh3 */
         public static void decode_start_st0(Lha lha)

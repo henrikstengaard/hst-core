@@ -10,7 +10,7 @@ namespace Hst.Compression.Lha
 {
     using System.IO;
 
-    public class CrcIo
+    internal class CrcIo
     {
         private readonly bool verifyMode;
         //private readonly Lha lha;

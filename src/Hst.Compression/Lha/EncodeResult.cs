@@ -3,7 +3,7 @@ namespace Hst.Compression.Lha
     /// <summary>
     /// Result of encoding (compressing) data.
     /// </summary>
-    public class EncodeResult
+    internal class EncodeResult
     {
         /// <summary>
         /// CRC-16 of the original data.

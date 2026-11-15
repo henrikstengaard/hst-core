@@ -1,6 +1,6 @@
 ﻿namespace Hst.Compression.Lha
 {
-    public interface IDecoder
+    internal interface IDecoder
     {
         // https://github.com/jca02266/lha/blob/master/src/slide.c
         /* lh4 */

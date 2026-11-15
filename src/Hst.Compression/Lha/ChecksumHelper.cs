@@ -1,6 +1,6 @@
 ﻿namespace Hst.Compression.Lha
 {
-    public static class ChecksumHelper
+    internal static class ChecksumHelper
     {
         public static int CalcSum(byte[] p, int offset, int len)
         {

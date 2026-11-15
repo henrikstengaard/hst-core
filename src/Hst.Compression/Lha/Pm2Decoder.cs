@@ -30,7 +30,7 @@ namespace Hst.Compression.Lha
     /// <summary>
     /// Decoder for -pm2- method (PMarc2). Combines pm2.c, pm2hist.c and pm2tree.c.
     /// </summary>
-    public class Pm2Decoder : IDecoder
+    internal class Pm2Decoder : IDecoder
     {
         // {decode_c_pm2, decode_p_pm2, decode_start_pm2}
         private const int Offset = 0x100 - 2;

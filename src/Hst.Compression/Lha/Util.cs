@@ -17,7 +17,7 @@ namespace Hst.Compression.Lha
     using System;
     using System.IO;
 
-    public static class Util
+    internal static class Util
     {
         //private static bool text_mode;
         // https://github.com/jca02266/lha/blob/03475355bc6311f7f816ea9a88fb34a0029d975b/src/util.c

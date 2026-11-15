@@ -10,7 +10,7 @@ namespace Hst.Compression.Lha
 {
     using System;
 
-    public static class MakeTbl
+    internal static class MakeTbl
     {
         public static void MakeTable(short nchar, byte[] bitlen, short tablebits, ushort[] table, ushort[] left,
             ushort[] right)

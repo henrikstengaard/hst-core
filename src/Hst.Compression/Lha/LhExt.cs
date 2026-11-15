@@ -18,7 +18,7 @@ namespace Hst.Compression.Lha
     using System.IO;
     using System.Linq;
 
-    public static class LhExt
+    internal static class LhExt
     {
         private static readonly string[] Methods =
         {

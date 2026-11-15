@@ -8,7 +8,7 @@
 /* ------------------------------------------------------------------------ */
 namespace Hst.Compression.Lha
 {
-    public static class DHuf
+    internal static class DHuf
     {
     /* ------------------------------------------------------------------------ */
         public static void start_c_dyn(Lha lha)

@@ -1,6 +1,6 @@
 ﻿namespace Hst.Compression.Lha
 {
-    public class Lh2Decoder : IDecoder
+    internal class Lh2Decoder : IDecoder
     {
         //{decode_c_dyn, decode_p_dyn, decode_start_dyn},
         public ushort DecodeC(Lha lha)

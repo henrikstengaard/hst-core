@@ -11,7 +11,7 @@ namespace Hst.Compression.Lha
     using System;
     using System.IO;
 
-    public static class Extract
+    internal static class Extract
     {
         /// <summary>
         /// Decode (extract) entry data from input stream to output stream.

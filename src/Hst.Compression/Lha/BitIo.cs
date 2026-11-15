@@ -11,7 +11,7 @@ namespace Hst.Compression.Lha
 {
     using System.IO;
 
-    public class BitIo
+    internal class BitIo
     {
         // https://github.com/jca02266/lha/blob/03475355bc6311f7f816ea9a88fb34a0029d975b/src/bitio.c
         

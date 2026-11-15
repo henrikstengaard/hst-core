@@ -13,4 +13,8 @@
       <ProjectReference Include="..\Hst.Core\Hst.Core.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <InternalsVisibleTo Include="Hst.Compression.Tests" />
+    </ItemGroup>
+
 </Project>

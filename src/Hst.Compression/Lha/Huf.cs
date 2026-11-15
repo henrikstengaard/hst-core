@@ -11,7 +11,7 @@ namespace Hst.Compression.Lha
 {
     using System;
 
-    public class Huf
+    internal class Huf
     {
         /* ------------------------------------------------------------------------ */
         /*                              Encoding                                    */
