@@ -1,8 +1,8 @@
-﻿# Lha
+# Lha
 
-Lha directory contains classes to read, extract and create Lha archives. The header reader and decoders are ported from [Lhasa](https://github.com/fragglet/lhasa) by Simon Howard, licensed under the ISC license (see `licenses/lhasa-license.md`).
+Lha directory contains classes to read, extract and create Lha archives. The reader, decoders and writer are an independent implementation of the lha file format licensed under the MIT license like the rest of Hst Compression. They don't contain code from LHa for UNIX or Lhasa, and the writer produces different, but compatible compressed data.
 
-The writer (`LhaWriter`, `HeaderWriter`, `LhEncoder`, `HuffmanCode` and `BitStreamWriter`) is an independent implementation written from the lha file format and the bitstream read by the Lhasa decoders. It's not derived from LHa for UNIX and produces different, but compatible compressed data.
+The archives in the test data directory `lhasa` are from the test suite of [Lhasa](https://github.com/fragglet/lhasa) and are only used for testing.
 
 ## Supported methods
 
@@ -26,7 +26,7 @@ The writer (`LhaWriter`, `HeaderWriter`, `LhEncoder`, `HuffmanCode` and `BitStre
 | `-pm1-` | PMarc 16KB history                               | Yes     | No     |
 | `-pm2-` | PMarc2 8KB sliding dictionary                    | Yes     | No     |
 
-`-lh2-` and `-lh3-` were short-lived experimental methods, which are rarely found in archives and aren't supported by Lhasa either.
+`-lh2-` and `-lh3-` were short-lived experimental methods, which are rarely found in archives.
 
 Headers level 0, 1, 2 and 3 can be read and headers level 0, 1 and 2 can be written. LHARK archives using `-lh7-` are detected and reported as method `-lk7-`.
 

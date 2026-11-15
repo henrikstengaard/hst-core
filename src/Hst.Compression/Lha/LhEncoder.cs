@@ -8,7 +8,7 @@ namespace Hst.Compression.Lha
     ///
     /// Data is compressed using a sliding dictionary (LZ77) with hash chains to find matches and lazy matching.
     /// Literals, match lengths and match offsets are collected into blocks, which are written using huffman codes
-    /// built for each block in the format read by <see cref="LhNewDecoder"/>:
+    /// built for each block in the format read by <see cref="LhDecoder"/>:
     /// - 16 bits: number of commands in block.
     /// - Temporary table: Code lengths of huffman code used to write code table code lengths.
     /// - Code table: Code lengths of literals (0-255) and match lengths (256-509).

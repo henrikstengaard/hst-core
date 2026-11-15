@@ -10,7 +10,7 @@ namespace Hst.Compression.Tests.Lha
     using Xunit;
 
     /// <summary>
-    /// Tests encoding data with static huffman methods and decoding it with decoders ported from Lhasa.
+    /// Tests encoding data with static huffman methods and decoding it with the lha decoders.
     /// </summary>
     public class GivenLhEncoder
     {

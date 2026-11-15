@@ -1,24 +1,7 @@
-// Ported from Lhasa lib/lha_file_header.c and lib/ext_header.c, https://github.com/fragglet/lhasa
-//
-// Copyright (c) 2011, 2012, Simon Howard
-//
-// Permission to use, copy, modify, and/or distribute this software
-// for any purpose with or without fee is hereby granted, provided
-// that the above copyright notice and this permission notice appear
-// in all copies.
-//
-// THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
-// WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
-// AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR
-// CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
-// LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
-// NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
-// CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-//
 namespace Hst.Compression.Lha
 {
     using System;
+    using System.Collections.Generic;
     using System.IO;
     using System.Text;
     using System.Threading.Tasks;
@@ -26,85 +9,72 @@ namespace Hst.Compression.Lha
     /// <summary>
     /// Reads lha headers level 0, 1, 2 and 3.
     /// </summary>
+    /// <remarks>
+    /// Layout of the fields common to all header levels:
+    /// offset 2: method (5 bytes), 7: packed size (4 bytes), 11: unpacked size (4 bytes), 15: time (4 bytes),
+    /// 19: attribute, 20: header level.
+    /// Level 0 and 1 starts with header size (1 byte) and checksum (1 byte), followed by name length and name at
+    /// offset 21, crc and for level 1 os type and size of first extended header.
+    /// Level 2 starts with total header size (2 bytes) followed by crc at offset 21, os type at 23 and extended headers
+    /// at 24. Level 3 starts with word size 4 (2 bytes) followed by crc at offset 21, os type at 23, total header size
+    /// at 24 (4 bytes) and extended headers at 28.
+    /// Extended headers are a list of records with size, type and data, terminated by size 0.
+    /// </remarks>
     internal class HeaderReader
     {
-        private const int COMMON_HEADER_LEN = 22; /* bytes */
+        private const int PREFIX_SIZE = 22;
+        private const int LEVEL0_MIN_SIZE = 20;
+        private const int LEVEL1_MIN_SIZE = 25;
+        private const int LEVEL2_MIN_SIZE = 26;
+        private const int LEVEL3_BASE_SIZE = 32;
+        private const int MAX_HEADER_SIZE = 1024 * 1024;
 
-        // Minimum length of a level 0 header (with zero-length filename and without crc).
-        private const int LEVEL_0_MIN_HEADER_LEN_WITHOUT_CRC = 20; /* bytes */
+        private const byte EXT_COMMON = 0x00;
+        private const byte EXT_FILENAME = 0x01;
+        private const byte EXT_PATH = 0x02;
+        private const byte EXT_MSDOS_ATTRIBUTE = 0x40;
+        private const byte EXT_WINDOWS_TIME = 0x41;
+        private const byte EXT_FILE_SIZE = 0x42;
+        private const byte EXT_UNIX_MODE = 0x50;
+        private const byte EXT_UNIX_GID_UID = 0x51;
+        private const byte EXT_UNIX_GROUP = 0x52;
+        private const byte EXT_UNIX_USER = 0x53;
+        private const byte EXT_UNIX_TIME = 0x54;
+        private const byte EXT_OS9 = 0xcc;
 
-        // Minimum length of a level 0 header (with zero-length filename).
-        private const int LEVEL_0_MIN_HEADER_LEN = 22; /* bytes */
-
-        // Minimum length of a level 1 base header (with zero-length filename).
-        private const int LEVEL_1_MIN_HEADER_LEN = 25; /* bytes */
-
-        // Length of a level 2 base header.
-        private const int LEVEL_2_HEADER_LEN = 26; /* bytes */
-
-        // Length of a level 3 base header.
-        private const int LEVEL_3_HEADER_LEN = 32; /* bytes */
-
-        // Maximum length of a level 3 header (including extended headers).
-        private const int LEVEL_3_MAX_HEADER_LEN = 1024 * 1024; /* 1 MB */
-
-        // Length of a level 0 Unix extended area.
-        private const int LEVEL_0_UNIX_EXTENDED_LEN = 12; /* bytes */
-
-        // Length of a level 0 OS-9 extended area.
-        private const int LEVEL_0_OS9_EXTENDED_LEN = 22; /* bytes */
-
-        // Extended header types:
-        private const byte LHA_EXT_HEADER_COMMON = 0x00;
-        private const byte LHA_EXT_HEADER_FILENAME = 0x01;
-        private const byte LHA_EXT_HEADER_PATH = 0x02;
-        private const byte LHA_EXT_HEADER_MSDOS_ATTRIBUTE = 0x40;
-        private const byte LHA_EXT_HEADER_WINDOWS_TIMESTAMPS = 0x41;
-        private const byte LHA_EXT_HEADER_FILE_SIZES = 0x42;
-        private const byte LHA_EXT_HEADER_UNIX_PERMISSION = 0x50;
-        private const byte LHA_EXT_HEADER_UNIX_UID_GID = 0x51;
-        private const byte LHA_EXT_HEADER_UNIX_GROUP = 0x52;
-        private const byte LHA_EXT_HEADER_UNIX_USER = 0x53;
-        private const byte LHA_EXT_HEADER_UNIX_TIMESTAMP = 0x54;
-        private const byte LHA_EXT_HEADER_OS9 = 0xcc;
+        private const ushort DEFAULT_UNIX_MODE = LhaUnixMode.Regular | 0x1b6; /* 0666 */
 
         private static readonly DateTime UnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         private readonly Encoding encoding;
 
         /// <summary>
-        /// State of header being decoded.
+        /// Fields read from a header.
         /// </summary>
-        private class FileHeader
+        private class Fields
         {
-            public byte[] RawData = Array.Empty<byte>();
-            public int RawDataLen;
-            public int HeaderLevel;
-            public string CompressMethod;
-            public long CompressedLength;
-            public long Length;
-            public DateTime Timestamp;
+            public byte[] Data;
+            public int Level;
+            public string Method;
+            public long PackedSize;
+            public long UnpackedSize;
+            public DateTime Date;
+            public DateTime? WindowsDate;
             public int Attributes;
-            public ushort Crc;
             public bool HasCrc;
+            public ushort Crc;
             public byte OsType;
-            public byte MinorVersion;
-            public string Path;
-            public string Filename;
-            public string SymlinkTarget;
-            public bool HasUnixPerms;
-            public ushort UnixPerms;
-            public bool HasUnixUidGid;
+            public string Directory;
+            public string FileName;
+            public string LinkTarget;
+            public ushort? UnixMode;
+            public ushort? Os9Mode;
             public ushort UnixUserId;
             public ushort UnixGroupId;
-            public bool HasOs9Perms;
-            public ushort Os9Perms;
-            public bool HasCommonCrc;
-            public ushort CommonCrc;
-            public bool HasWindowsTimestamps;
-            public ulong WinModificationTime;
-            public string UnixUsername;
-            public string UnixGroup;
+            public string UnixUserName;
+            public string UnixGroupName;
+            public int? HeaderCrcOffset;
+            public ushort HeaderCrc;
         }
 
         public HeaderReader(LhaOptions options)
@@ -112,14 +82,51 @@ namespace Hst.Compression.Lha
             encoding = options.Encoding;
         }
 
-        private static ushort DecodeUint16(byte[] buf, int offset) =>
-            (ushort)(buf[offset] | (buf[offset + 1] << 8));
+        /// <summary>
+        /// Read header from stream.
+        /// </summary>
+        /// <param name="stream">Stream positioned at start of header.</param>
+        /// <returns>Header read or null, if end of archive is reached.</returns>
+        public async Task<LhaEntry> Read(Stream stream)
+        {
+            var headerOffset = stream.Position;
 
-        private static uint DecodeUint32(byte[] buf, int offset) =>
-            (uint)(buf[offset] | (buf[offset + 1] << 8) | (buf[offset + 2] << 16) | (buf[offset + 3] << 24));
+            var prefix = new byte[PREFIX_SIZE];
+            var prefixLength = await ReadFully(stream, prefix, 0, prefix.Length);
 
-        private static ulong DecodeUint64(byte[] buf, int offset) =>
-            DecodeUint32(buf, offset) | ((ulong)DecodeUint32(buf, offset + 4) << 32);
+            // archive ends, when there's no room for another header or with a 0 byte (level 2 headers are padded to
+            // never start with 0). The end may be followed by padding like ctrl-z in pmarc archives.
+            if (prefixLength < PREFIX_SIZE || prefix[0] == 0)
+            {
+                return null;
+            }
+
+            var fields = new Fields { Data = prefix, Level = prefix[20] };
+            switch (fields.Level)
+            {
+                case 0:
+                case 1:
+                    await ReadLevel0Or1(stream, fields);
+                    break;
+                case 2:
+                    await ReadLevel2(stream, fields);
+                    break;
+                case 3:
+                    await ReadLevel3(stream, fields);
+                    break;
+                default:
+                    throw new IOException($"Unknown header level {fields.Level}");
+            }
+
+            ApplyQuirks(fields);
+
+            if (fields.HeaderCrcOffset.HasValue)
+            {
+                VerifyHeaderCrc(fields);
+            }
+
+            return CreateEntry(fields, headerOffset);
+        }
 
         private static async Task<int> ReadFully(Stream stream, byte[] buffer, int offset, int count)
         {
@@ -138,44 +145,511 @@ namespace Hst.Compression.Lha
             return total;
         }
 
-        // Read some more data from the input stream, extending the raw_data
-        // array (and the size of the header).
-        private static async Task ExtendRawData(FileHeader header, Stream stream, int nbytes)
+        /// <summary>
+        /// Read more bytes of header and append them to header data.
+        /// </summary>
+        private static async Task Append(Stream stream, Fields fields, int count)
         {
-            if (nbytes < 0 || nbytes > LEVEL_3_MAX_HEADER_LEN)
+            if (count < 0 || fields.Data.Length + count > MAX_HEADER_SIZE)
             {
                 throw new IOException("Invalid header size");
             }
 
-            var newRawLen = header.RawDataLen + nbytes;
-            if (newRawLen > header.RawData.Length)
-            {
-                Array.Resize(ref header.RawData, newRawLen);
-            }
+            var offset = fields.Data.Length;
+            var data = fields.Data;
+            Array.Resize(ref data, offset + count);
+            fields.Data = data;
 
-            if (await ReadFully(stream, header.RawData, header.RawDataLen, nbytes) != nbytes)
+            if (await ReadFully(stream, data, offset, count) != count)
             {
                 throw new IOException("Unexpected end of header");
             }
+        }
 
-            header.RawDataLen = newRawLen;
+        private static ushort UInt16(byte[] data, int offset) => (ushort)(data[offset] | (data[offset + 1] << 8));
+
+        private static uint UInt32(byte[] data, int offset) => UInt16(data, offset) | ((uint)UInt16(data, offset + 2) << 16);
+
+        private static ulong UInt64(byte[] data, int offset) => UInt32(data, offset) | ((ulong)UInt32(data, offset + 4) << 32);
+
+        private static void ReadCommonFields(Fields fields)
+        {
+            var data = fields.Data;
+            fields.Method = Encoding.ASCII.GetString(data, 2, 5);
+            fields.PackedSize = UInt32(data, 7);
+            fields.UnpackedSize = UInt32(data, 11);
+            fields.Attributes = data[19];
+        }
+
+        private async Task ReadLevel0Or1(Stream stream, Fields fields)
+        {
+            int size = fields.Data[0];
+            var checksum = fields.Data[1];
+            var minSize = fields.Level == 0 ? LEVEL0_MIN_SIZE : LEVEL1_MIN_SIZE;
+            if (size < minSize)
+            {
+                throw new IOException("Invalid header size");
+            }
+
+            await Append(stream, fields, size + 2 - fields.Data.Length);
+
+            var data = fields.Data;
+            var sum = 0;
+            for (var i = 2; i < data.Length; i++)
+            {
+                sum += data[i];
+            }
+
+            if ((sum & 0xff) != checksum)
+            {
+                throw new IOException("Checksum error");
+            }
+
+            ReadCommonFields(fields);
+            fields.Date = FromDosTime(UInt32(data, 15));
+
+            int nameLength = data[21];
+            if (minSize + nameLength > size)
+            {
+                throw new IOException("Invalid header size");
+            }
+
+            SetLevel0Name(fields, 22, nameLength);
+
+            // crc is missing in level 0 headers created by old versions of LHarc
+            var crcOffset = 22 + nameLength;
+            fields.HasCrc = size >= crcOffset;
+            if (fields.HasCrc)
+            {
+                fields.Crc = UInt16(data, crcOffset);
+            }
+
+            if (fields.Level == 0)
+            {
+                fields.OsType = LhaOsType.Generic;
+                var extendedAreaSize = size - crcOffset;
+                if (extendedAreaSize > 0)
+                {
+                    ReadLevel0ExtendedArea(fields, crcOffset + 2, extendedAreaSize);
+                }
+
+                return;
+            }
+
+            fields.OsType = data[crcOffset + 2];
+
+            // extended headers follow base header, where packed size includes the size of extended headers
+            var extendedHeadersOffset = data.Length - 2;
+            int nextSize;
+            while ((nextSize = UInt16(fields.Data, fields.Data.Length - 2)) != 0)
+            {
+                await Append(stream, fields, nextSize);
+
+                if (fields.PackedSize < nextSize || nextSize < 3)
+                {
+                    throw new IOException("Invalid extended header size");
+                }
+
+                fields.PackedSize -= nextSize;
+            }
+
+            ReadExtendedHeaders(fields, extendedHeadersOffset, 2);
+        }
+
+        private async Task ReadLevel2(Stream stream, Fields fields)
+        {
+            int size = UInt16(fields.Data, 0);
+            if (size < LEVEL2_MIN_SIZE)
+            {
+                throw new IOException("Invalid header size");
+            }
+
+            await Append(stream, fields, size - fields.Data.Length);
+
+            ReadCommonFields(fields);
+            fields.Date = FromUnixTime(UInt32(fields.Data, 15));
+            fields.HasCrc = true;
+            fields.Crc = UInt16(fields.Data, 21);
+            fields.OsType = fields.Data[23];
+
+            // LHA for OS-9/68k writes level 2 header size without the size field itself
+            if (fields.OsType == LhaOsType.Os68K)
+            {
+                await Append(stream, fields, 2);
+            }
+
+            ReadExtendedHeaders(fields, 24, 2);
+        }
+
+        private async Task ReadLevel3(Stream stream, Fields fields)
+        {
+            if (UInt16(fields.Data, 0) != 4)
+            {
+                throw new IOException("Invalid header word size");
+            }
+
+            await Append(stream, fields, LEVEL3_BASE_SIZE - fields.Data.Length);
+
+            var size = UInt32(fields.Data, 24);
+            if (size > MAX_HEADER_SIZE || size < LEVEL3_BASE_SIZE)
+            {
+                throw new IOException("Invalid header size");
+            }
+
+            await Append(stream, fields, (int)size - fields.Data.Length);
+
+            ReadCommonFields(fields);
+            fields.Date = FromUnixTime(UInt32(fields.Data, 15));
+            fields.HasCrc = true;
+            fields.Crc = UInt16(fields.Data, 21);
+            fields.OsType = fields.Data[23];
+
+            ReadExtendedHeaders(fields, 28, 4);
         }
 
         /// <summary>
-        /// Decode MS-DOS timestamp. Date and time fields are returned as is.
+        /// Set directory and file name from name in level 0 and 1 header using '\' or '/' as path separator.
         /// </summary>
-        private static DateTime DecodeFtime(uint raw)
+        private void SetLevel0Name(Fields fields, int offset, int length)
         {
-            var second = (int)((raw << 1) & 0x3e);
-            var minute = (int)((raw >> 5) & 0x3f);
-            var hour = (int)((raw >> 11) & 0x1f);
-            var day = (int)((raw >> 16) & 0x1f);
-            var month = (int)((raw >> 21) & 0xf);
-            var year = 1980 + (int)((raw >> 25) & 0x7f);
+            // empty name is used for directories
+            if (length == 0)
+            {
+                return;
+            }
+
+            SetPath(fields, encoding.GetString(fields.Data, offset, length).Replace('\\', '/'));
+        }
+
+        /// <summary>
+        /// Set directory and file name from path, which is split at last path separator.
+        /// </summary>
+        private static void SetPath(Fields fields, string path)
+        {
+            var separator = path.LastIndexOf('/');
+            if (separator < 0)
+            {
+                fields.FileName = path;
+                return;
+            }
+
+            fields.Directory = path.Substring(0, separator + 1);
+            fields.FileName = path.Substring(separator + 1);
+        }
+
+        /// <summary>
+        /// Read extended area of level 0 header, which is used by unix, OS-9/68k and OS-9 versions of lha.
+        /// </summary>
+        private static void ReadLevel0ExtendedArea(Fields fields, int offset, int length)
+        {
+            // pmarc stores comments in extended area
+            if (fields.Method.StartsWith("-pm", StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            var data = fields.Data;
+            switch (data[offset])
+            {
+                case LhaOsType.Unix:
+                case LhaOsType.Os68K:
+                    // os type, minor version 0, unix time, then mode, uid and gid at the end. OS-9/68k includes the
+                    // time twice, so mode, uid and gid are read from the end.
+                    if (length < 12 || data[offset + 1] != 0)
+                    {
+                        return;
+                    }
+
+                    var end = offset + length;
+                    fields.OsType = data[offset];
+                    fields.Date = FromUnixTime(UInt32(data, offset + 2));
+                    fields.UnixMode = UInt16(data, end - 6);
+                    fields.UnixUserId = UInt16(data, end - 4);
+                    fields.UnixGroupId = UInt16(data, end - 2);
+                    break;
+                case LhaOsType.Os9:
+                    // os type, mode, ... with OS-9 extended header type at offset 9 and mode repeated at offset 17
+                    if (length < 22 || data[offset + 9] != EXT_OS9 || data[offset + 1] != data[offset + 17] ||
+                        data[offset + 2] != data[offset + 18])
+                    {
+                        return;
+                    }
+
+                    fields.OsType = LhaOsType.Os9;
+                    fields.Os9Mode = UInt16(data, offset + 1);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Read list of extended headers. Each record has size including size field, type and data.
+        /// </summary>
+        private void ReadExtendedHeaders(Fields fields, int offset, int sizeFieldLength)
+        {
+            var data = fields.Data;
+            while (offset + sizeFieldLength <= data.Length)
+            {
+                var size = sizeFieldLength == 4 ? UInt32(data, offset) : UInt16(data, offset);
+                if (size == 0)
+                {
+                    break;
+                }
+
+                // record must contain size and type and must be followed by size field of next record
+                if (size < sizeFieldLength + 1 || offset + size + sizeFieldLength > data.Length)
+                {
+                    throw new IOException("Invalid extended header size");
+                }
+
+                var typeOffset = offset + sizeFieldLength;
+                ReadExtendedHeader(fields, data[typeOffset], typeOffset + 1, (int)size - sizeFieldLength - 1);
+                offset += (int)size;
+            }
+        }
+
+        private void ReadExtendedHeader(Fields fields, byte type, int offset, int length)
+        {
+            var data = fields.Data;
+            switch (type)
+            {
+                case EXT_COMMON when length >= 2:
+                    // crc of complete header calculated with crc field set to 0
+                    fields.HeaderCrcOffset = offset;
+                    fields.HeaderCrc = UInt16(data, offset);
+                    break;
+                case EXT_FILENAME when length >= 1:
+                    // file name can't contain path separators
+                    fields.FileName = encoding.GetString(data, offset, length).Replace('/', '_');
+                    break;
+                case EXT_PATH when length >= 1:
+                    fields.Directory = ReadDirectory(data, offset, length);
+                    break;
+                case EXT_MSDOS_ATTRIBUTE when length >= 2:
+                    fields.Attributes = UInt16(data, offset);
+                    break;
+                case EXT_WINDOWS_TIME when length >= 24:
+                    // creation, last modified and last access time as windows file times
+                    fields.WindowsDate = FromWindowsTime(UInt64(data, offset + 8));
+                    break;
+                case EXT_FILE_SIZE when length >= 16:
+                    fields.PackedSize = (long)UInt64(data, offset);
+                    fields.UnpackedSize = (long)UInt64(data, offset + 8);
+                    break;
+                case EXT_UNIX_MODE when length >= 2:
+                    fields.UnixMode = UInt16(data, offset);
+                    break;
+                case EXT_UNIX_GID_UID when length >= 4:
+                    fields.UnixGroupId = UInt16(data, offset);
+                    fields.UnixUserId = UInt16(data, offset + 2);
+                    break;
+                case EXT_UNIX_GROUP when length >= 1:
+                    fields.UnixGroupName = encoding.GetString(data, offset, length).TrimEnd('\0');
+                    break;
+                case EXT_UNIX_USER when length >= 1:
+                    fields.UnixUserName = encoding.GetString(data, offset, length).TrimEnd('\0');
+                    break;
+                case EXT_UNIX_TIME when length >= 4:
+                    fields.Date = FromUnixTime(UInt32(data, offset));
+                    break;
+                case EXT_OS9 when length >= 12:
+                    fields.Os9Mode = UInt16(data, offset + 7);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Read directory from path extended header with 0xff as path separator. Each directory is decoded
+        /// separately, as 0xff isn't a valid character in all encodings. Returned directory ends with '/'.
+        /// </summary>
+        private string ReadDirectory(byte[] data, int offset, int length)
+        {
+            var directory = new StringBuilder();
+            var start = offset;
+            var end = offset + length;
+            for (var i = offset; i <= end; i++)
+            {
+                // a missing separator at the end (written by Amiga LHA 1.22) is treated as present
+                if (i < end && data[i] != 0xff)
+                {
+                    continue;
+                }
+
+                if (i == end && start == end)
+                {
+                    break;
+                }
+
+                directory.Append(encoding.GetString(data, start, i - start)).Append('/');
+                start = i + 1;
+            }
+
+            return directory.ToString();
+        }
+
+        /// <summary>
+        /// Apply fixes and conversions for archives created by various lha tools.
+        /// </summary>
+        private static void ApplyQuirks(Fields fields)
+        {
+            // some Amiga archives store directories as -lh0- without name
+            if (fields.OsType == LhaOsType.Amiga && fields.Method == LhaMethod.Lh0 && fields.UnpackedSize == 0 &&
+                fields.FileName == null)
+            {
+                fields.Method = LhaMethod.Lhd;
+            }
+
+            // symbolic links are stored as -lhd- with name "link|target", which can be split over directory and
+            // file name
+            if (fields.Method == LhaMethod.Lhd && fields.UnixMode.HasValue &&
+                (fields.UnixMode.Value & LhaUnixMode.TypeMask) == LhaUnixMode.Symlink &&
+                (fields.Directory != null || fields.FileName != null))
+            {
+                var link = string.Concat(fields.Directory, fields.FileName);
+                var separator = link.IndexOf('|');
+                if (separator < 0)
+                {
+                    throw new IOException($"Invalid symbolic link \"{link}\"");
+                }
+
+                fields.LinkTarget = link.Substring(separator + 1);
+                fields.Directory = null;
+                fields.FileName = null;
+                SetPath(fields, link.Substring(0, separator));
+            }
+
+            if (fields.Directory != null)
+            {
+                fields.Directory = NormalizeDirectory(fields.Directory);
+            }
+
+            // unix mode written by OS-9/68k is an OS-9 mode
+            if (fields.OsType == LhaOsType.Os68K && fields.UnixMode.HasValue)
+            {
+                fields.Os9Mode = fields.UnixMode;
+            }
+
+            if (fields.Os9Mode.HasValue)
+            {
+                fields.UnixMode = FromOs9Mode(fields.Os9Mode.Value);
+            }
+
+            // LHARK uses -lh7- for its own method, which is incompatible with -lh7-
+            if (fields.Level == 1 && fields.OsType == LhaOsType.Lhark && fields.Method == LhaMethod.Lh7)
+            {
+                fields.Method = LhaMethod.Lk7;
+            }
+        }
+
+        /// <summary>
+        /// Normalize directory by removing empty and "." directories and resolving ".." directories without going
+        /// above the top, so a directory can't refer to locations outside the extraction directory.
+        /// A leading '/' is preserved.
+        /// </summary>
+        private static string NormalizeDirectory(string directory)
+        {
+            var absolute = directory.StartsWith("/", StringComparison.Ordinal);
+            var parts = new List<string>();
+            foreach (var part in directory.Split('/'))
+            {
+                switch (part)
+                {
+                    case "":
+                    case ".":
+                        break;
+                    case "..":
+                        if (parts.Count > 0)
+                        {
+                            parts.RemoveAt(parts.Count - 1);
+                        }
+
+                        break;
+                    default:
+                        parts.Add(part);
+                        break;
+                }
+            }
+
+            var normalized = new StringBuilder(absolute ? "/" : string.Empty);
+            foreach (var part in parts)
+            {
+                normalized.Append(part).Append('/');
+            }
+
+            return normalized.ToString();
+        }
+
+        /// <summary>
+        /// Convert OS-9 mode with owner and public permissions to unix mode, where public permissions are used for
+        /// both group and others.
+        /// </summary>
+        private static ushort FromOs9Mode(ushort os9Mode)
+        {
+            // OS-9 permission bits are read, write, execute from lowest bit, unix bits are in opposite order
+            var owner = ToUnixPermissions(os9Mode & 0x07);
+            var others = ToUnixPermissions((os9Mode >> 3) & 0x07);
+            var directory = (os9Mode & 0x80) != 0 ? LhaUnixMode.Directory : 0;
+
+            return (ushort)(directory | (owner << 6) | (others << 3) | others);
+        }
+
+        private static int ToUnixPermissions(int os9Permissions) =>
+            ((os9Permissions & 1) << 2) | (os9Permissions & 2) | ((os9Permissions & 4) >> 2);
+
+        private static void VerifyHeaderCrc(Fields fields)
+        {
+            var offset = fields.HeaderCrcOffset.Value;
+            var data = fields.Data;
+            data[offset] = 0;
+            data[offset + 1] = 0;
+
+            if (Crc16.Update(0, data, 0, data.Length) != fields.HeaderCrc)
+            {
+                throw new IOException("Header CRC error");
+            }
+        }
+
+        private static LhaEntry CreateEntry(Fields fields, long headerOffset)
+        {
+            return new LhaEntry
+            {
+                HeaderOffset = headerOffset,
+                HeaderSize = fields.Data.Length,
+                HeaderLevel = fields.Level,
+                HeaderCrc = (short)fields.HeaderCrc,
+                Method = fields.Method,
+                Name = string.Concat(fields.Directory, fields.FileName).Replace('/', '\\'),
+                LinkTarget = fields.LinkTarget?.Replace('/', '\\'),
+                PackedSize = fields.PackedSize,
+                UnpackedSize = fields.UnpackedSize,
+                HasCrc = fields.HasCrc,
+                Crc = (short)fields.Crc,
+                Attributes = fields.Attributes,
+                OsType = fields.OsType,
+                // windows time is more precise than ms-dos time in level 0 and 1 headers
+                Date = fields.WindowsDate.HasValue && fields.Level < 2 ? fields.WindowsDate.Value : fields.Date,
+                UnixMode = fields.UnixMode ?? DEFAULT_UNIX_MODE,
+                UnixUserId = fields.UnixUserId,
+                UnixGroupId = fields.UnixGroupId,
+                UnixUserName = fields.UnixUserName,
+                UnixGroupName = fields.UnixGroupName
+            };
+        }
+
+        /// <summary>
+        /// Convert ms-dos date and time. Invalid dates are returned as 1980-01-01.
+        /// </summary>
+        private static DateTime FromDosTime(uint value)
+        {
+            var year = 1980 + (int)(value >> 25);
+            var month = (int)((value >> 21) & 0x0f);
+            var day = (int)((value >> 16) & 0x1f);
+            var hour = (int)((value >> 11) & 0x1f);
+            var minute = (int)((value >> 5) & 0x3f);
+            var second = (int)(value & 0x1f) * 2;
 
             try
             {
-                return new DateTime(year, month == 0 ? 1 : month, day == 0 ? 1 : day, hour, minute, second,
+                return new DateTime(year, Math.Max(month, 1), Math.Max(day, 1), hour, minute, second,
                     DateTimeKind.Utc);
             }
             catch (ArgumentOutOfRangeException)
@@ -184,894 +658,18 @@ namespace Hst.Compression.Lha
             }
         }
 
-        private static DateTime DecodeUnixTime(uint timestamp) => UnixEpoch.AddSeconds(timestamp);
+        private static DateTime FromUnixTime(uint value) => UnixEpoch.AddSeconds(value);
 
-        private static DateTime DecodeWindowsTime(ulong fileTime)
+        private static DateTime FromWindowsTime(ulong value)
         {
             try
             {
-                return DateTime.FromFileTimeUtc((long)fileTime);
+                return DateTime.FromFileTimeUtc((long)value);
             }
             catch (ArgumentOutOfRangeException)
             {
                 return UnixEpoch;
             }
-        }
-
-        /// <summary>
-        /// Given a file header with the filename set, split it into separate
-        /// path and filename components, if necessary.
-        /// </summary>
-        private static void SplitHeaderFilename(FileHeader header)
-        {
-            // Is there a directory separator in the path?  If so, we need to
-            // split into directory name and filename.
-            var sep = header.Filename.LastIndexOf('/');
-
-            if (sep >= 0)
-            {
-                header.Path = header.Filename.Substring(0, sep + 1);
-                header.Filename = header.Filename.Substring(sep + 1);
-            }
-        }
-
-        // Perform checksum of header contents.
-        private static bool CheckL0Checksum(byte[] header, int offset, int headerLen, int csum)
-        {
-            var result = 0;
-
-            for (var i = offset; i < offset + headerLen; ++i)
-            {
-                result += header[i];
-            }
-
-            return (result & 0xff) == csum;
-        }
-
-        // Perform full-header CRC check, based on CRC from "common" extended header.
-        private static bool CheckCommonCrc(FileHeader header)
-        {
-            var crc = Crc16.Update(0, header.RawData, 0, header.RawDataLen);
-
-            return crc == header.CommonCrc;
-        }
-
-        // Process the OS-9 permissions field and translate into the equivalent
-        // Unix permissions.
-        private static void Os9ToUnixPermissions(FileHeader header)
-        {
-            // Translate into equivalent Unix permissions. OS-9 just has
-            // owner and public, so double up public for the owner field.
-            var or = (header.Os9Perms & 0x01) != 0 ? 1 : 0;
-            var ow = (header.Os9Perms & 0x02) != 0 ? 1 : 0;
-            var oe = (header.Os9Perms & 0x04) != 0 ? 1 : 0;
-            var pr = (header.Os9Perms & 0x08) != 0 ? 1 : 0;
-            var pw = (header.Os9Perms & 0x10) != 0 ? 1 : 0;
-            var pe = (header.Os9Perms & 0x20) != 0 ? 1 : 0;
-            var d = (header.Os9Perms & 0x80) != 0 ? 1 : 0;
-
-            header.HasUnixPerms = true;
-            header.UnixPerms = (ushort)((d << 14)
-                                        | (or << 8) | (ow << 7) | (oe << 6) // owner
-                                        | (pr << 5) | (pw << 4) | (pe << 3) // group
-                                        | (pr << 2) | (pw << 1) | (pe << 0)); // everyone
-        }
-
-        // Parse a Unix symbolic link. These are stored in the format:
-        // filename = symlink|target
-        private static void ParseSymlink(FileHeader header)
-        {
-            // Although the format is always the same, some files have
-            // symlink headers where the path is split between the path
-            // and filename headers. For example:
-            //    path = etc|../../
-            //    filename = etc
-            var fullpath = string.Concat(header.Path ?? string.Empty, header.Filename ?? string.Empty);
-
-            var p = fullpath.IndexOf('|');
-
-            if (p < 0)
-            {
-                throw new IOException($"Invalid symbolic link \"{fullpath}\"");
-            }
-
-            header.SymlinkTarget = fullpath.Substring(p + 1);
-
-            // Cut the string in half at the separator. Keep the left side
-            // as the value for filename.
-            header.Path = null;
-            header.Filename = fullpath.Substring(0, p);
-
-            // Having joined path and filename together during processing,
-            // we now have the opposite problem: header->filename might
-            // contain a full path rather than just a filename. Split back
-            // into two again.
-            SplitHeaderFilename(header);
-        }
-
-        // Decode the path field in the header.
-        private void ProcessLevel0Path(FileHeader header, int offset, int dataLen)
-        {
-            // Zero-length filename probably means that this is a directory
-            // entry. Leave the filename field as NULL - this makes us
-            // consistent with level 2/3 headers.
-            if (dataLen == 0)
-            {
-                return;
-            }
-
-            var data = new byte[dataLen];
-            Array.Copy(header.RawData, offset, data, 0, dataLen);
-
-            // Convert MS-DOS path separators to Unix path separators.
-            for (var i = 0; i < dataLen; ++i)
-            {
-                if (data[i] == '\\')
-                {
-                    data[i] = (byte)'/';
-                }
-            }
-
-            header.Filename = encoding.GetString(data);
-
-            SplitHeaderFilename(header);
-        }
-
-        // Decode an extended header.
-        private void DecodeExtHeader(FileHeader header, byte num, int offset, int dataLen)
-        {
-            var raw = header.RawData;
-
-            switch (num)
-            {
-                // Common header (0x00).
-                //
-                // This contains a 16-bit CRC of the entire LHA header.
-                case LHA_EXT_HEADER_COMMON:
-                    if (dataLen < 2)
-                    {
-                        return;
-                    }
-
-                    header.HasCommonCrc = true;
-                    header.CommonCrc = DecodeUint16(raw, offset);
-
-                    // There is a catch-22 in calculating the CRC, because the field
-                    // containing the CRC is part of the data being CRC'd. The solution
-                    // is that the CRC is calculated with the CRC field set to zero.
-                    // Therefore, now that the CRC has been read, set the field to
-                    // zero in the raw_data array so that the CRC can be calculated
-                    // correctly.
-                    raw[offset] = 0x00;
-                    raw[offset + 1] = 0x00;
-                    break;
-
-                // Filename header (0x01).
-                //
-                // This stores the filename for the file. This is essential on level 2/3
-                // headers, as the filename field is no longer part of the standard
-                // header.
-                case LHA_EXT_HEADER_FILENAME:
-                    if (dataLen < 1)
-                    {
-                        return;
-                    }
-
-                    var filename = new byte[dataLen];
-                    Array.Copy(raw, offset, filename, 0, dataLen);
-
-                    // Sanitize the filename that was read. It is not allowed to
-                    // contain a path separator, which could potentially be used
-                    // to do something malicious.
-                    for (var i = 0; i < filename.Length; ++i)
-                    {
-                        if (filename[i] == '/')
-                        {
-                            filename[i] = (byte)'_';
-                        }
-                    }
-
-                    header.Filename = encoding.GetString(filename);
-                    break;
-
-                // Path header (0x02).
-                //
-                // This stores the directory path of the file. A value of 0xff is used
-                // as the path separator. It is supposed to include a terminating path
-                // separator as the last character.
-                case LHA_EXT_HEADER_PATH:
-                    if (dataLen < 1)
-                    {
-                        return;
-                    }
-
-                    // Amiga LHA v1.22 generates path headers without a path
-                    // separator at the end of the string. This is broken (and
-                    // was fixed in a later version), but handle it correctly.
-                    var addSeparator = raw[offset + dataLen - 1] != 0xff;
-                    var path = new byte[addSeparator ? dataLen + 1 : dataLen];
-                    Array.Copy(raw, offset, path, 0, dataLen);
-                    if (addSeparator)
-                    {
-                        path[dataLen] = 0xff;
-                    }
-
-                    // each path element is decoded separately and joined with '/', as 0xff path separators
-                    // aren't valid characters in all encodings
-                    var start = 0;
-                    var builder = new StringBuilder();
-                    for (var i = 0; i < path.Length; ++i)
-                    {
-                        if (path[i] != 0xff)
-                        {
-                            continue;
-                        }
-
-                        builder.Append(encoding.GetString(path, start, i - start)).Append('/');
-                        start = i + 1;
-                    }
-
-                    header.Path = builder.ToString();
-                    break;
-
-                // MS-DOS attribute header (0x40).
-                case LHA_EXT_HEADER_MSDOS_ATTRIBUTE:
-                    if (dataLen < 2)
-                    {
-                        return;
-                    }
-
-                    header.Attributes = DecodeUint16(raw, offset);
-                    break;
-
-                // Windows timestamp header (0x41).
-                //
-                // This is a Windows-specific header that stores 64-bit timestamps in
-                // Windows FILETIME format. The timestamps have 100ns accuracy, which is
-                // much more accurate than the normal Unix time_t format.
-                case LHA_EXT_HEADER_WINDOWS_TIMESTAMPS:
-                    if (dataLen < 24)
-                    {
-                        return;
-                    }
-
-                    header.HasWindowsTimestamps = true;
-                    header.WinModificationTime = DecodeUint64(raw, offset + 8);
-                    break;
-
-                // File sizes header (0x42).
-                //
-                // This contains 64-bit versions of the uncompressed/compressed file size
-                // header fields, for storing very long files.
-                case LHA_EXT_HEADER_FILE_SIZES:
-                    if (dataLen < 16)
-                    {
-                        return;
-                    }
-
-                    header.CompressedLength = (long)DecodeUint64(raw, offset);
-                    header.Length = (long)DecodeUint64(raw, offset + 8);
-                    break;
-
-                // Unix permissions header (0x50).
-                case LHA_EXT_HEADER_UNIX_PERMISSION:
-                    if (dataLen < 2)
-                    {
-                        return;
-                    }
-
-                    header.HasUnixPerms = true;
-                    header.UnixPerms = DecodeUint16(raw, offset);
-                    break;
-
-                // Unix UID/GID header (0x51).
-                case LHA_EXT_HEADER_UNIX_UID_GID:
-                    if (dataLen < 4)
-                    {
-                        return;
-                    }
-
-                    header.HasUnixUidGid = true;
-                    header.UnixGroupId = DecodeUint16(raw, offset);
-                    header.UnixUserId = DecodeUint16(raw, offset + 2);
-                    break;
-
-                // Unix group header (0x52).
-                case LHA_EXT_HEADER_UNIX_GROUP:
-                    if (dataLen < 1)
-                    {
-                        return;
-                    }
-
-                    header.UnixGroup = encoding.GetString(raw, offset, dataLen).TrimEnd('\0');
-                    break;
-
-                // Unix username header (0x53).
-                case LHA_EXT_HEADER_UNIX_USER:
-                    if (dataLen < 1)
-                    {
-                        return;
-                    }
-
-                    header.UnixUsername = encoding.GetString(raw, offset, dataLen).TrimEnd('\0');
-                    break;
-
-                // Unix timestamp header (0x54).
-                //
-                // This stores a 32-bit Unix time_t timestamp representing the
-                // modification time of the file.
-                case LHA_EXT_HEADER_UNIX_TIMESTAMP:
-                    if (dataLen < 4)
-                    {
-                        return;
-                    }
-
-                    header.Timestamp = DecodeUnixTime(DecodeUint32(raw, offset));
-                    break;
-
-                // OS-9 (6809) header (0xcc)
-                //
-                // This stores OS-9 filesystem metadata.
-                case LHA_EXT_HEADER_OS9:
-                    if (dataLen < 12)
-                    {
-                        return;
-                    }
-
-                    header.Os9Perms = DecodeUint16(raw, offset + 7);
-                    header.HasOs9Perms = true;
-                    break;
-            }
-        }
-
-        // Starting at the specified offset in the raw_data array, walk
-        // through the list of extended headers and parse them.
-        private void DecodeExtendedHeaders(FileHeader header, int offset)
-        {
-            // Level 3 headers use 32-bit length fields; all others use
-            // 16-bit fields.
-            var fieldSize = header.HeaderLevel == 3 ? 4 : 2;
-
-            long availableLength = header.RawDataLen - offset - fieldSize;
-
-            while (offset <= header.RawDataLen - fieldSize)
-            {
-                var extHeader = offset + fieldSize;
-                long extHeaderLen = fieldSize == 4
-                    ? DecodeUint32(header.RawData, offset)
-                    : DecodeUint16(header.RawData, offset);
-
-                // Header length zero indicates end of chain. Otherwise, sanity
-                // check the header length is valid.
-                if (extHeaderLen == 0)
-                {
-                    break;
-                }
-
-                if (extHeaderLen < fieldSize + 1 || extHeaderLen > availableLength)
-                {
-                    throw new IOException("Invalid extended header size");
-                }
-
-                // Process header:
-                DecodeExtHeader(header, header.RawData[extHeader], extHeader + 1,
-                    (int)extHeaderLen - fieldSize - 1);
-
-                // Advance to next header.
-                offset += (int)extHeaderLen;
-                availableLength -= extHeaderLen;
-            }
-        }
-
-        // Read extended headers for a level 1 header, extending the
-        // raw_data block to include them.
-        private static async Task ReadL1ExtendedHeaders(FileHeader header, Stream stream)
-        {
-            for (;;)
-            {
-                // Last two bytes of the header raw data contain the size
-                // of the next header.
-                var extHeaderLen = DecodeUint16(header.RawData, header.RawDataLen - 2);
-
-                // Last header?
-                if (extHeaderLen == 0)
-                {
-                    break;
-                }
-
-                await ExtendRawData(header, stream, extHeaderLen);
-
-                // For backwards compatibility with level 0 headers,
-                // the compressed length field is actually "compressed
-                // length + length of all extended headers":
-                if (header.CompressedLength < extHeaderLen)
-                {
-                    throw new IOException("Invalid extended header size");
-                }
-
-                header.CompressedLength -= extHeaderLen;
-
-                // Must be at least 3 bytes - 1 byte header type
-                // + 2 bytes for next header length
-                if (extHeaderLen < 3)
-                {
-                    throw new IOException("Invalid extended header size");
-                }
-            }
-        }
-
-        // Process a level 0 Unix extended area.
-        private static void ProcessLevel0UnixArea(FileHeader header, int offset, int dataLen)
-        {
-            var data = header.RawData;
-
-            // A typical Unix extended area:
-            //
-            // 00000000  55 00 00 3b 3d 4b 80 81  e8 03 e8 03
-
-            // Sanity check.
-            if (dataLen < LEVEL_0_UNIX_EXTENDED_LEN || data[offset + 1] != 0x00)
-            {
-                return;
-            }
-
-            // OS-9/68k generates an extended area that is broadly compatible
-            // with the Unix one.
-
-            // Fill in the header fields from the data from the extended area.
-            // There's one minor point to note here: OS-9/68k LHA includes the
-            // timestamp twice - I have no idea why. In order to support both
-            // variants, read the end fields from the end of the extended area.
-            header.OsType = data[offset];
-            header.MinorVersion = data[offset + 1];
-            header.Timestamp = DecodeUnixTime(DecodeUint32(data, offset + 2));
-
-            header.UnixPerms = DecodeUint16(data, offset + dataLen - 6);
-            header.UnixUserId = DecodeUint16(data, offset + dataLen - 4);
-            header.UnixGroupId = DecodeUint16(data, offset + dataLen - 2);
-
-            header.HasUnixPerms = true;
-            header.HasUnixUidGid = true;
-        }
-
-        // Process a level 0 OS-9 extended area.
-        private static void ProcessLevel0Os9Area(FileHeader header, int offset, int dataLen)
-        {
-            var data = header.RawData;
-
-            // A typical OS-9 extended area:
-            //
-            // 00000000  39 13 00 00 c3 16 00 0f  00 cc 18 07 09 03 01 16
-            // 00000010  00 13 00 00 00 00
-
-            // Sanity checks:
-            if (dataLen < LEVEL_0_OS9_EXTENDED_LEN
-                || data[offset + 9] != 0xcc || data[offset + 1] != data[offset + 17] ||
-                data[offset + 2] != data[offset + 18])
-            {
-                return;
-            }
-
-            // The contents resemble the contents of the OS-9 extended header.
-            // We just want the permissions field.
-            header.OsType = LhaOsType.Os9;
-            header.Os9Perms = DecodeUint16(data, offset + 1);
-            header.HasOs9Perms = true;
-        }
-
-        // Handling for level 0 extended areas.
-        private static void ProcessLevel0ExtendedArea(FileHeader header, int offset, int dataLen)
-        {
-            // PMarc archives can include comments that are stored in the
-            // extended area. It is possible that this could conflict with
-            // the logic below, so specifically exclude them.
-            if (header.CompressMethod.StartsWith("-pm", StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            // Different tools include different extended areas. Try to
-            // identify which tool generated this one, based on the first
-            // byte.
-            switch (header.RawData[offset])
-            {
-                case LhaOsType.Unix:
-                case LhaOsType.Os68K:
-                    ProcessLevel0UnixArea(header, offset, dataLen);
-                    break;
-
-                case LhaOsType.Os9:
-                    ProcessLevel0Os9Area(header, offset, dataLen);
-                    break;
-            }
-        }
-
-        // Decode a level 0 or 1 header.
-        private async Task DecodeLevel0Header(FileHeader header, Stream stream)
-        {
-            var headerLen = header.RawData[0];
-            var headerCsum = header.RawData[1];
-
-            // Sanity check header length.  This is the minimum header length
-            // for a header that has a zero-length path.
-            var minLen = header.HeaderLevel == 0 ? LEVEL_0_MIN_HEADER_LEN_WITHOUT_CRC : LEVEL_1_MIN_HEADER_LEN;
-
-            if (headerLen < minLen)
-            {
-                throw new IOException("Invalid header size");
-            }
-
-            // We only have a partial header so far. Read the full header.
-            await ExtendRawData(header, stream, headerLen + 2 - header.RawDataLen);
-
-            // Checksum the header.
-            if (!CheckL0Checksum(header.RawData, 2, header.RawDataLen - 2, headerCsum))
-            {
-                throw new IOException("Checksum error");
-            }
-
-            // Compression method:
-            header.CompressMethod = Encoding.ASCII.GetString(header.RawData, 2, 5);
-
-            // File lengths:
-            header.CompressedLength = DecodeUint32(header.RawData, 7);
-            header.Length = DecodeUint32(header.RawData, 11);
-
-            // Timestamp:
-            header.Timestamp = DecodeFtime(DecodeUint32(header.RawData, 15));
-
-            header.Attributes = header.RawData[19];
-
-            // Read path.  Check path length field - is the header long enough
-            // to hold this full path?
-            var pathLen = header.RawData[21];
-
-            if (minLen + pathLen > headerLen)
-            {
-                throw new IOException("Invalid header size");
-            }
-
-            // OS type?
-            header.OsType = header.HeaderLevel == 0 ? LhaOsType.Generic : header.RawData[24 + pathLen];
-
-            // Read filename field:
-            ProcessLevel0Path(header, 22, pathLen);
-
-            // CRC field. Old LHarc level 0 headers doesn't have a crc field.
-            header.HasCrc = headerLen >= LEVEL_0_MIN_HEADER_LEN + pathLen;
-            if (header.HasCrc)
-            {
-                header.Crc = DecodeUint16(header.RawData, 22 + pathLen);
-            }
-
-            // Level 0 headers can contain extended data through different schemes
-            // to the extended header system used in level 1+.
-            if (header.HeaderLevel == 0 && headerLen > LEVEL_0_MIN_HEADER_LEN + pathLen)
-            {
-                ProcessLevel0ExtendedArea(header, LEVEL_0_MIN_HEADER_LEN + 2 + pathLen,
-                    headerLen - LEVEL_0_MIN_HEADER_LEN - pathLen);
-            }
-        }
-
-        private async Task DecodeLevel1Header(FileHeader header, Stream stream)
-        {
-            await DecodeLevel0Header(header, stream);
-
-            // Level 1 headers can have extended headers, so parse them.
-            var extHeaderStart = header.RawDataLen - 2;
-
-            await ReadL1ExtendedHeaders(header, stream);
-            DecodeExtendedHeaders(header, extHeaderStart);
-        }
-
-        private async Task DecodeLevel2Header(FileHeader header, Stream stream)
-        {
-            var headerLen = DecodeUint16(header.RawData, 0);
-
-            if (headerLen < LEVEL_2_HEADER_LEN)
-            {
-                throw new IOException("Invalid header size");
-            }
-
-            // Read the full header.
-            await ExtendRawData(header, stream, headerLen - header.RawDataLen);
-
-            // Compression method:
-            header.CompressMethod = Encoding.ASCII.GetString(header.RawData, 2, 5);
-
-            // File lengths:
-            header.CompressedLength = DecodeUint32(header.RawData, 7);
-            header.Length = DecodeUint32(header.RawData, 11);
-
-            // Timestamp. Unlike level 0/1, this is a Unix-style timestamp.
-            header.Timestamp = DecodeUnixTime(DecodeUint32(header.RawData, 15));
-
-            header.Attributes = header.RawData[19];
-
-            // CRC.
-            header.HasCrc = true;
-            header.Crc = DecodeUint16(header.RawData, 21);
-
-            // OS type:
-            header.OsType = header.RawData[23];
-
-            // LHA for OS-9/68k generates broken level 2 archives: the header
-            // length field is the length of the remainder of the header, not
-            // the complete header length. As a result it's two bytes too
-            // short. We can use the OS type field to detect these archives
-            // and compensate.
-            if (header.OsType == LhaOsType.Os68K)
-            {
-                await ExtendRawData(header, stream, 2);
-            }
-
-            DecodeExtendedHeaders(header, 24);
-        }
-
-        private async Task DecodeLevel3Header(FileHeader header, Stream stream)
-        {
-            // The first field at the start of a level 3 header is supposed to
-            // indicate word size, with the idea being that the header format
-            // can be extended beyond 32-bit words in the future. In practise,
-            // nothing supports anything other than 32-bit (4 bytes), and neither
-            // do we.
-            if (DecodeUint16(header.RawData, 0) != 4)
-            {
-                throw new IOException("Invalid header word size");
-            }
-
-            // Read the full header.
-            await ExtendRawData(header, stream, LEVEL_3_HEADER_LEN - header.RawDataLen);
-
-            // Read the header length field (including extended headers), and
-            // extend to this full length. Because this is a 32-bit value,
-            // we must place a sensible limit on the amount of data that will
-            // be read, to avoid possibly allocating gigabytes of memory.
-            var headerLen = DecodeUint32(header.RawData, 24);
-
-            if (headerLen > LEVEL_3_MAX_HEADER_LEN || headerLen < header.RawDataLen)
-            {
-                throw new IOException("Invalid header size");
-            }
-
-            await ExtendRawData(header, stream, (int)headerLen - header.RawDataLen);
-
-            // Compression method:
-            header.CompressMethod = Encoding.ASCII.GetString(header.RawData, 2, 5);
-
-            // File lengths:
-            header.CompressedLength = DecodeUint32(header.RawData, 7);
-            header.Length = DecodeUint32(header.RawData, 11);
-
-            // Unix-style timestamp.
-            header.Timestamp = DecodeUnixTime(DecodeUint32(header.RawData, 15));
-
-            header.Attributes = header.RawData[19];
-
-            // CRC.
-            header.HasCrc = true;
-            header.Crc = DecodeUint16(header.RawData, 21);
-
-            // OS type:
-            header.OsType = header.RawData[23];
-
-            DecodeExtendedHeaders(header, 28);
-        }
-
-        // "Collapse" a path down, by removing all instances of "." and ".."
-        // paths. This is to protect against malicious archives that might include
-        // ".." in a path to break out of the extract directory.
-        private static string CollapsePath(string filename)
-        {
-            var prefix = string.Empty;
-
-            // If the path starts with a /, it is an absolute path; skip over
-            // that first character and don't remove it.
-            if (filename.StartsWith("/", StringComparison.Ordinal))
-            {
-                prefix = "/";
-                filename = filename.Substring(1);
-            }
-
-            var result = new StringBuilder();
-            var currpath = 0;
-
-            for (var r = 0; r < filename.Length; ++r)
-            {
-                result.Append(filename[r]);
-
-                // Each time a new path separator is found, examine the
-                // path that was just written.
-                if (filename[r] != '/')
-                {
-                    continue;
-                }
-
-                var currpathLen = result.Length - currpath - 1;
-
-                // Empty path (//) or current directory (.)?
-                if (currpathLen == 0 || (currpathLen == 1 && result[currpath] == '.'))
-                {
-                    result.Length = currpath;
-                }
-                // Parent directory (..)?
-                else if (currpathLen == 2 && result[currpath] == '.' && result[currpath + 1] == '.')
-                {
-                    // Walk back up by one directory. Don't go
-                    // past the start of the string.
-                    if (currpath == 0)
-                    {
-                        result.Length = 0;
-                    }
-                    else
-                    {
-                        var w = currpath - 1;
-                        while (w > 0)
-                        {
-                            if (result[w - 1] == '/')
-                            {
-                                break;
-                            }
-
-                            --w;
-                        }
-
-                        result.Length = w;
-                        currpath = w;
-                    }
-                }
-                // Save for next time we start a new path.
-                else
-                {
-                    currpath = result.Length;
-                }
-            }
-
-            return string.Concat(prefix, result.ToString());
-        }
-
-        /// <summary>
-        /// Read header from stream.
-        /// </summary>
-        /// <param name="stream">Stream positioned at start of header.</param>
-        /// <returns>Header read or null, if end of archive is reached.</returns>
-        public async Task<LhaEntry> Read(Stream stream)
-        {
-            var headerOffset = stream.Position;
-
-            // We cannot decode the file header until we identify the
-            // header level (as different header level formats are
-            // decoded in different ways. The header level field is
-            // located at byte offset 20 within the header, so we
-            // must read the first 21 bytes to read it (actually this
-            // reads one byte more, so that we get the filename length
-            // byte for level 1 headers as well).
-            var header = new FileHeader
-            {
-                RawData = new byte[COMMON_HEADER_LEN],
-                RawDataLen = COMMON_HEADER_LEN
-            };
-
-            var bytesRead = await ReadFully(stream, header.RawData, 0, COMMON_HEADER_LEN);
-
-            // End of archive is reached, when there's not enough data for a header or first byte is 0
-            // (level 2 headers are padded to never start with 0). End of archive mark might be followed by padding
-            // like 0x1a (ctrl-z) in pmarc archives.
-            if (bytesRead < COMMON_HEADER_LEN || header.RawData[0] == 0)
-            {
-                return null;
-            }
-
-            // Identify header level, and decode header depending on
-            // the value encountered.
-            header.HeaderLevel = header.RawData[20];
-
-            switch (header.HeaderLevel)
-            {
-                case 0:
-                    await DecodeLevel0Header(header, stream);
-                    break;
-                case 1:
-                    await DecodeLevel1Header(header, stream);
-                    break;
-                case 2:
-                    await DecodeLevel2Header(header, stream);
-                    break;
-                case 3:
-                    await DecodeLevel3Header(header, stream);
-                    break;
-                default:
-                    throw new IOException($"Unknown header level {header.HeaderLevel}");
-            }
-
-            // Some Amiga archives have directory entries mistakenly encoded
-            // as -lh0- rather than -lhd-. These look like regular files
-            // without a filename, which is obviously incorrect. So we catch
-            // this case and fix the compress_method field.
-            if (header.OsType == LhaOsType.Amiga
-                && header.CompressMethod == LhaMethod.Lh0
-                && header.Length == 0 && header.Filename == null)
-            {
-                header.CompressMethod = LhaMethod.Lhd;
-            }
-
-            // Symlinks are stored using the same compression method
-            // field string (-lhd-) as directories.
-            if (header.CompressMethod == LhaMethod.Lhd
-                && header.HasUnixPerms
-                && (header.Path != null || header.Filename != null)
-                && (header.UnixPerms & LhaUnixMode.TypeMask) == LhaUnixMode.Symlink)
-            {
-                ParseSymlink(header);
-            }
-
-            // Collapse special directory paths to ensure the path is clean.
-            if (header.Path != null)
-            {
-                header.Path = CollapsePath(header.Path);
-            }
-
-            // Is this header generated by OS-9/68k LHA? If so, any Unix
-            // permissions are actually OS-9 permissions.
-            if (header.OsType == LhaOsType.Os68K && header.HasUnixPerms)
-            {
-                header.Os9Perms = header.UnixPerms;
-                header.HasOs9Perms = true;
-            }
-
-            // If OS-9 permissions were read, translate into Unix permissions.
-            if (header.HasOs9Perms)
-            {
-                Os9ToUnixPermissions(header);
-            }
-
-            // Was the "common" extended header read, which contains a CRC of
-            // the full header? If so, perform a CRC check now.
-            if (header.HasCommonCrc && !CheckCommonCrc(header))
-            {
-                throw new IOException("Header CRC error");
-            }
-
-            // The DOS LHARK tool has its own -lh7- format that is incompatible
-            // with the -lh7- that everyone else uses. As a workaround, we detect
-            // and rename the compression method to -lk7- so as to be able to
-            // distinguish between the two formats.
-            if (header.HeaderLevel == 1 && header.OsType == LhaOsType.Lhark
-                && header.CompressMethod == LhaMethod.Lh7)
-            {
-                header.CompressMethod = LhaMethod.Lk7;
-            }
-
-            // Windows timestamp is used for level 0 and 1 headers, which have ms-dos timestamps
-            var timestamp = header.HasWindowsTimestamps && header.HeaderLevel < 2
-                ? DecodeWindowsTime(header.WinModificationTime)
-                : header.Timestamp;
-
-            return new LhaEntry
-            {
-                HeaderOffset = headerOffset,
-                HeaderSize = header.RawDataLen,
-                HeaderLevel = header.HeaderLevel,
-                Method = header.CompressMethod,
-                PackedSize = header.CompressedLength,
-                UnpackedSize = header.Length,
-                Attributes = header.Attributes,
-                Name = string.Concat(header.Path ?? string.Empty, header.Filename ?? string.Empty)
-                    .Replace('/', '\\'),
-                LinkTarget = header.SymlinkTarget?.Replace('/', '\\'),
-                HasCrc = header.HasCrc,
-                Crc = (short)header.Crc,
-                HeaderCrc = (short)header.CommonCrc,
-                OsType = header.OsType,
-                Date = timestamp,
-                UnixMode = header.HasUnixPerms
-                    ? header.UnixPerms
-                    : (ushort)(LhaUnixMode.Regular | 0x1b6),
-                UnixUserId = header.UnixUserId,
-                UnixGroupId = header.UnixGroupId,
-                UnixUserName = header.UnixUsername,
-                UnixGroupName = header.UnixGroup
-            };
         }
     }
 }

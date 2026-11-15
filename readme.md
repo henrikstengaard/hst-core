@@ -16,7 +16,7 @@ See more at [Hst Compression](src/Hst.Compression) section.
 
 ## Licenses
 
-Hst Core, Hst Compression, Hst Imaging and Hst Imaging Pngcs are licensed under the MIT license, see [license.txt](license.txt). Hst Compression includes code ported from Lhasa (ISC license), see [THIRD-PARTY-NOTICES.txt](src/Hst.Compression/THIRD-PARTY-NOTICES.txt).
+Hst Core, Hst Compression, Hst Imaging and Hst Imaging Pngcs are licensed under the MIT license, see [license.txt](license.txt). Hst Compression includes code based on unlzx, see [THIRD-PARTY-NOTICES.txt](src/Hst.Compression/THIRD-PARTY-NOTICES.txt).
 
 ## Hst Imaging
 

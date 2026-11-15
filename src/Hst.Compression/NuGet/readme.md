@@ -7,4 +7,4 @@ Features:
 - Create lha archives with methods -lh0-, -lh4-, -lh5-, -lh6- and -lh7- and header levels 0, 1 and 2.
 - Read and extract lzx archives.
 
-Hst Compression is licensed under the MIT license. The lha reader and decoders are ported from Lhasa (ISC license), see THIRD-PARTY-NOTICES.txt.
+Hst Compression is licensed under the MIT license. The lzx extractor is based on unlzx, see THIRD-PARTY-NOTICES.txt.

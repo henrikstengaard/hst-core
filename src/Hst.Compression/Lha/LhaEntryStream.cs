@@ -97,9 +97,7 @@ namespace Hst.Compression.Lha
                 throw new ArgumentOutOfRangeException(nameof(count));
             }
 
-            // When we reach the end of the stream, we must truncate the
-            // decompressed data at exactly the right point (original size),
-            // or we may read a few extra false byte(s) by mistake.
+            // decoders can decode past end of data, so reading is limited to unpacked size
             var remaining = entry.UnpackedSize - position;
             if (count > remaining)
             {
