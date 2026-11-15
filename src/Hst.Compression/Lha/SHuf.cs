@@ -23,6 +23,27 @@ namespace Hst.Compression.Lha
             lha.np = 1 << (Constants.LZHUFF3_DICBIT - 6);
         }
         
+        public static void encode_p_st0(Lha lha, ushort j)
+        {
+            var i = j >> 6;
+            lha.bitIo.PutCode(lha.pt_len[i], lha.pt_code[i]);
+            lha.bitIo.PutBits(6, (ushort)(j & 0x3f));
+        }
+
+        /// <summary>
+        /// lh1
+        /// </summary>
+        public static void encode_start_fix(Lha lha)
+        {
+            lha.n_max = 314;
+            lha.maxmatch = 60;
+            lha.np = 1 << (12 - 6);
+            lha.bitIo.InitPutBits();
+            lha.crcIo.init_code_cache();
+            start_c_dyn(lha);
+            ready_made(lha, 0);
+        }
+
         /// <summary>
         /// lh1
         /// </summary>

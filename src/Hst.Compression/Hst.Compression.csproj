@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <Description>Hst Compression is a library for reading and extracting compression file formats.</Description>
-        <PackageTags>Hst;Compression;Lha</PackageTags>
+        <Description>Hst Compression is a library for reading, extracting and creating compression file formats.</Description>
+        <PackageTags>Hst;Compression;Lha;Lzh;Lzx</PackageTags>
     </PropertyGroup>
 
     <ItemGroup>

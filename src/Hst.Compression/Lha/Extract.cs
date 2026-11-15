@@ -1,4 +1,4 @@
-﻿/* ------------------------------------------------------------------------ */
+/* ------------------------------------------------------------------------ */
 /* LHa for UNIX                                                             */
 /*              extract.c -- extrcat from archive                           */
 /*                                                                          */
@@ -8,35 +8,46 @@
 /* ------------------------------------------------------------------------ */
 namespace Hst.Compression.Lha
 {
+    using System;
     using System.IO;
 
     public static class Extract
     {
+        /// <summary>
+        /// Decode (extract) entry data from input stream to output stream.
+        /// </summary>
+        /// <param name="input">Input stream positioned at start of entry data.</param>
+        /// <param name="output">Output stream to write extracted data to. Can be null to only calculate crc.</param>
+        /// <param name="hdr">Header of entry.</param>
+        /// <param name="readSize">Number of bytes read from input stream.</param>
+        /// <param name="verifyMode">Verify mode only calculates crc and doesn't write to output stream.</param>
+        /// <param name="textMode">Text mode is not supported.</param>
+        /// <param name="extractBrokenArchive">Extract archives created by old LHa for UNIX with a bug.</param>
+        /// <returns>CRC-16 of extracted data.</returns>
         public static uint DecodeLzHuf(Stream input, Stream output, LzHeader hdr, out int readSize,
             bool verifyMode = false, bool textMode = false, bool extractBrokenArchive = false)
         {
-            var crcIo = new CrcIo(verifyMode);
-            readSize = 0;
-            
-            var method = GetMethodNum(hdr.Method);
-            var dicBit = GetDicBit(hdr.Method);
-
-            // reset crc
-            crcIo.InitializeCrc();
-
-            if (dicBit == 0)
+            if (textMode)
             {
-                /* LZHUFF0_DICBIT or LARC4_DICBIT or PMARC0_DICBIT*/
-                // *read_sizep = copyfile(infp, (verify_mode ? NULL : outfp), original_size, 2, &crc);
-                readSize = Util.CopyFile(input, verifyMode ? null : output, (int)hdr.OriginalSize, textMode, crcIo);
-            }
-            else
-            {
-                readSize = Slide.Decode(crcIo, input, output, method, dicBit, (int)hdr.OriginalSize, (int)hdr.PackedSize, extractBrokenArchive);
-                //read_size =  interface.read_size;
+                throw new NotSupportedException("Text mode is not supported");
             }
 
-            return crcIo.crc;
+            var dataOffset = input.CanSeek ? input.Position : 0;
+            using (var entryStream = new LhaEntryStream(input, hdr, dataOffset, extractBrokenArchive, false))
+            {
+                var buffer = new byte[Constants.BUFFERSIZE * 16];
+                int bytesRead;
+                while ((bytesRead = entryStream.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    if (!verifyMode)
+                    {
+                        output?.Write(buffer, 0, bytesRead);
+                    }
+                }
+
+                readSize = (int)entryStream.ReadSize;
+                return entryStream.Crc;
+            }
         }
 
         internal static int GetMethodNum(string method)
@@ -65,12 +76,14 @@ namespace Hst.Compression.Lha
                     return Constants.LARC5_METHOD_NUM;
                 case Constants.LARC4_METHOD:
                     return Constants.LARC4_METHOD_NUM;
+                case Constants.LZHDIRS_METHOD:
+                    return Constants.LZHDIRS_METHOD_NUM;
                 case Constants.PMARC0_METHOD:
                     return Constants.PMARC0_METHOD_NUM;
                 case Constants.PMARC2_METHOD:
                     return Constants.PMARC2_METHOD_NUM;
                 default:
-                    return Constants.LZHUFF5_METHOD_NUM;
+                    throw new NotSupportedException($"Unknown method \"{method}\"");
             }
         }
 
@@ -100,12 +113,14 @@ namespace Hst.Compression.Lha
                     return Constants.LARC5_DICBIT;
                 case Constants.LARC4_METHOD:
                     return Constants.LARC4_DICBIT;
+                case Constants.LZHDIRS_METHOD:
+                    return 0; /* directory or symbolic link has no data */
                 case Constants.PMARC0_METHOD:
                     return Constants.PMARC0_DICBIT;
                 case Constants.PMARC2_METHOD:
                     return Constants.PMARC2_DICBIT;
                 default:
-                    return Constants.LZHUFF5_DICBIT;
+                    throw new NotSupportedException($"Unknown method \"{method}\"");
             }
         }
     }

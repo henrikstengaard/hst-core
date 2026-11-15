@@ -40,13 +40,24 @@
             return entries;
         }
 
+        /// <summary>
+        /// Extract entry data to output stream. CRC of extracted data is verified.
+        /// </summary>
+        /// <param name="header">Header of entry to extract.</param>
+        /// <param name="outputStream">Output stream to write extracted data to.</param>
         public void Extract(LzHeader header, Stream outputStream)
         {
-            stream.Seek(header.HeaderOffset + header.HeaderSize, SeekOrigin.Begin);
-            
-            LhExt.ExtractOne(stream, outputStream, header);
+            using (var entryStream = OpenEntry(header))
+            {
+                entryStream.CopyTo(outputStream);
+            }
         }
 
+        /// <summary>
+        /// Open entry as a stream, which decompresses (extracts) data as it's read.
+        /// </summary>
+        /// <param name="header">Header of entry to open.</param>
+        /// <returns>Entry stream.</returns>
         public LhaEntryStream OpenEntry(LzHeader header)
         {
             return new LhaEntryStream(stream, header);

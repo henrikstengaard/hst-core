@@ -162,6 +162,15 @@ namespace Hst.Compression.Lha
             }
         }
         
+        public uint calccrc(byte[] buf, int offset, int n)
+        {
+            for (var i = offset; i < offset + n; i++)
+            {
+                UPDATE_CRC(buf[i]);
+            }
+            return crc;
+        }
+
         public uint calccrc(byte[] buf, uint n)
         {
             // unsigned int crc;

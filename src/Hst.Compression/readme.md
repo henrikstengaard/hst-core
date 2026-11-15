@@ -1,7 +1,7 @@
 # Hst Compression
 
-Hst Compression is a library for reading and extracting compression file formats.
+Hst Compression is a library for reading, extracting and creating compression file formats.
 
 Features:
-- Read and extract lha archives.
+- Read, extract and create lha archives.
 - Read and extract lzx archives.

@@ -58,17 +58,22 @@ namespace Hst.Compression.Lha
         // static unsigned int bufsiz;     /* encode */
         // static unsigned short blocksize; /* decode */
         // static unsigned short output_pos, output_mask; /* encode */
-        public byte buf;      /* encode */
+        public byte[] buf;      /* encode */
         public uint bufsiz;     /* encode */
         public ushort blocksize; /* decode */
-        //static ushort output_pos, output_mask; /* encode */
+        public ushort output_pos, output_mask; /* encode */
+        public ushort cpos; /* encode, static variable in output_st1() */
 
         // static int pbit;
         // static int np;
         public int pbit;
         public int np;
         
-        public int decode_count;
+        public long decode_count;
+
+        // sliding dictionary and current position shared with decoders (slide.c: dtext, loc)
+        public byte[] dtext;
+        public int loc;
         
         public uint n_max;
         public ushort maxmatch;

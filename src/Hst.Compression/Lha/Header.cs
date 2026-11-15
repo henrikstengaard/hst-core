@@ -45,7 +45,9 @@ namespace Hst.Compression.Lha
             var headerOffset = stream.Position;
             var data = await stream.ReadBytes(I_HEADER_LEVEL + 1);
 
-            if (data == null || data.Length == 0 || (data.Length == 1 && data[0] == 0) ||
+            // first byte 0 is end of archive mark (level 2 headers are padded to never start with 0),
+            // which might be followed by padding like 0x1a (ctrl-z) in pmarc archives
+            if (data == null || data.Length == 0 || data[0] == 0 ||
                 data.Length < I_HEADER_LEVEL + 1)
             {
                 return null;
@@ -184,7 +186,7 @@ Git doesn’t store arbitrary modes, only a subset of the values are allowed, fr
             /* defaults for other type */
             header.UnixMode = Constants.UNIX_FILE_REGULAR | Constants.UNIX_RW_RW_RW;
             header.UnixGid = 0;
-            header.UnixGid = 0;
+            header.UnixUid = 0;
 
             var extendSize = headerSize + 2 - nameLength - 24;
 
@@ -195,6 +197,7 @@ Git doesn’t store arbitrary modes, only a subset of the values are allowed, fr
                     /* CRC field is not given */
                     header.ExtendType = Constants.EXTEND_GENERIC;
                     header.HasCrc = false;
+                    header.HeaderSize += 2;
 
                     return header;
                 }
@@ -281,7 +284,7 @@ Git doesn’t store arbitrary modes, only a subset of the values are allowed, fr
             /* defaults for other type */
             header.UnixMode = Constants.UNIX_FILE_REGULAR | Constants.UNIX_RW_RW_RW;
             header.UnixGid = 0;
-            header.UnixGid = 0;
+            header.UnixUid = 0;
 
             header.HasCrc = true;
             header.Crc = headerReader.ReadInt16();
@@ -290,7 +293,7 @@ Git doesn’t store arbitrary modes, only a subset of the values are allowed, fr
             var skipBytes = header.HeaderSize + 2 - nameLength - I_LEVEL1_HEADER_SIZE;
             if (skipBytes > 0)
             {
-                await stream.ReadBytes(skipBytes); /* skip old style extend header */
+                headerReader.ReadBytes(skipBytes); /* skip old style extend header */
             }
 
             var extendSize = (int)headerReader.ReadInt16();
@@ -367,9 +370,11 @@ Git doesn’t store arbitrary modes, only a subset of the values are allowed, fr
                 throw new IOException($"Invalid header size (padding: {padding})");
             }
 
-            while (padding-- > 0)
+            if (padding > 0)
             {
-                crcIo.UPDATE_CRC(headerReader.ReadByte());
+                /* padding byte is located after extended headers */
+                var paddingBytes = await stream.ReadBytes(padding);
+                crcIo.calccrc(paddingBytes, 0, paddingBytes.Length);
             }
 
             var headerCrc = (short)crcIo.crc;
@@ -527,13 +532,11 @@ Git doesn’t store arbitrary modes, only a subset of the values are allowed, fr
                         break;
                     case 0x52:
                         /* UNIX group name */
-                        header.UnixGroupName = options.Encoding.GetString(dataReader.ReadBytes(headerSize - n - 1));
-                        dataReader.ReadByte();
+                        header.UnixGroupName = options.Encoding.GetString(dataReader.ReadBytes(headerSize - n)).TrimEnd('\0');
                         break;
                     case 0x53:
                         /* UNIX user name */
-                        header.UnixUserName = options.Encoding.GetString(dataReader.ReadBytes(headerSize - n - 1));
-                        dataReader.ReadByte();
+                        header.UnixUserName = options.Encoding.GetString(dataReader.ReadBytes(headerSize - n)).TrimEnd('\0');
                         break;
                     case 0x54:
                         header.UnixLastModifiedStamp = DateHelper.ToUnixTimeStamp(dataReader.ReadInt32());

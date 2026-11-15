@@ -34,7 +34,7 @@ namespace Hst.Compression.Lha
 
             if (string.IsNullOrWhiteSpace(method))
             {
-                throw new IOException($"Unknown method \"{method}\"; \"{hdr.Name}\" will be skipped ...");
+                throw new IOException($"Unknown method \"{hdr.Method}\"; \"{hdr.Name}\" will be skipped ...");
             }
         }
 
@@ -42,13 +42,8 @@ namespace Hst.Compression.Lha
         {
             EnsureSupportedMethod(hdr);
 
-            var crc = (short)Extract.DecodeLzHuf(input, output, hdr, out var readSize);
+            var crc = (short)Extract.DecodeLzHuf(input, output, hdr, out _, verifyMode);
 
-            if (hdr.PackedSize != readSize)
-            {
-                throw new IOException($"Read size {readSize} doesnt match packed size {hdr.PackedSize}");
-            }
-            
             if (hdr.HasCrc && crc != hdr.Crc)
             {
                 throw new IOException($"CRC error: \"{hdr.Name}\"");

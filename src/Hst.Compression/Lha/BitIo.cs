@@ -67,6 +67,28 @@ namespace Hst.Compression.Lha
             subbitbuf <<= n;
         }
 
+        /// <summary>
+        /// Read byte directly from stream bypassing bit buffer, equivalent of getc(infile) used by lz5.
+        /// Compressed size is decremented to keep track of bytes read.
+        /// </summary>
+        /// <returns>Byte read or 0, if all compressed bytes are read</returns>
+        public int GetC()
+        {
+            if (compsize == 0)
+            {
+                return 0;
+            }
+
+            compsize--;
+            var c = stream.ReadByte();
+            if (c == -1)
+            {
+                throw new IOException("cannot read stream");
+            }
+
+            return c;
+        }
+
         public ushort GetBits(int n)
         {
             var x = (ushort)(bitbuf >> (2 * Constants.CHAR_BIT - n));

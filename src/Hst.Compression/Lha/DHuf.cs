@@ -244,6 +244,66 @@ namespace Hst.Compression.Lha
             update_p(lha, p);
         }    
         
+    /* ------------------------------------------------------------------------ */
+        private static void encode_c_dyn(Lha lha, uint c)
+        {
+            uint bits;
+            int p, d, cnt;
+
+            d = (int)c - lha.n1;
+            if (d >= 0)
+            {
+                c = (uint)lha.n1;
+            }
+
+            cnt = 0;
+            bits = 0;
+            p = lha.s_node[c];
+            do
+            {
+                bits >>= 1;
+                if ((p & 1) != 0)
+                {
+                    bits |= 0x80000000;
+                }
+
+                cnt++;
+            } while ((p = lha.parent[p]) != Constants.ROOT_C);
+
+            if (cnt <= 16)
+            {
+                lha.bitIo.PutCode((byte)cnt, (ushort)(bits >> 16));
+            }
+            else
+            {
+                lha.bitIo.PutCode(16, (ushort)(bits >> 16));
+                lha.bitIo.PutBits((byte)(cnt - 16), (ushort)bits);
+            }
+
+            if (d >= 0)
+            {
+                lha.bitIo.PutBits(8, (ushort)d);
+            }
+
+            update_c(lha, (int)c);
+        }
+
+    /* lh1 */
+        public static void output_dyn(Lha lha, uint code, uint pos)
+        {
+            encode_c_dyn(lha, code);
+            if (code >= 0x100)
+            {
+                SHuf.encode_p_st0(lha, (ushort)pos);
+            }
+        }
+
+    /* lh1 */
+        public static void encode_end_dyn(Lha lha)
+        {
+            lha.bitIo.PutCode(7, 0);
+        }
+
     /* lh1, 2 */
         public static ushort decode_c_dyn(Lha lha)
         {
