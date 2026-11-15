@@ -1,20 +1,36 @@
-﻿# Lha
+# Lha
 
-Lha directory contains classes to read and extract Lha archives. It's based on "LHa for UNIX with Autoconf" at https://github.com/jca02266/lha.
+Lha directory contains classes to read, extract and create Lha archives. The reader, decoders and writer are an independent implementation of the lha file format licensed under the MIT license like the rest of Hst Compression. They don't contain code from LHa for UNIX or Lhasa, and the writer produces different, but compatible compressed data.
 
-Original license and readme files are located in `licenses` directory.
+The archives in the test data directory `lhasa` are from the test suite of [Lhasa](https://github.com/fragglet/lhasa) and are only used for testing.
 
-## History and credits
+## Supported methods
 
-The original source code has following history and credits for maintainers:
-- Original version by Y.Tagawa
-- 1991.12.16, Modified by M.Oki
-- 1993.10.01, Ver. 1.10 by N.Watazaki: Symbolic Link added
-- 1994.08.22, Ver. 1.13b by N.Watazaki: Symbolic Link Bug Fix
-- 1995.01.14, Ver. 1.14 by N.Watazaki: Source All changed
-- 2000.10.06, Ver. 1.14i by t.okamoto: bug fixed
-- 2002.06.29, Ver. 1.14i by Hiroto Sakai: Contributed UTF-8 convertion for Mac OS X                    */
-- 2003.02.23, Ver. 1.14i by Koji Arai: autoconfiscated & rewritten
+| Method  | Description                                      | Extract | Create |
+|---------|--------------------------------------------------|---------|--------|
+| `-lh0-` | Stored, no compression                           | Yes     | Yes    |
+| `-lh1-` | 4KB sliding dictionary, dynamic huffman          | Yes     | No     |
+| `-lh2-` | 8KB sliding dictionary, dynamic huffman          | No      | No     |
+| `-lh3-` | 8KB sliding dictionary, static huffman           | No      | No     |
+| `-lh4-` | 4KB sliding dictionary, static huffman           | Yes     | Yes    |
+| `-lh5-` | 8KB sliding dictionary, static huffman           | Yes     | Yes    |
+| `-lh6-` | 32KB sliding dictionary, static huffman          | Yes     | Yes    |
+| `-lh7-` | 64KB sliding dictionary, static huffman          | Yes     | Yes    |
+| `-lhx-` | UNLHA32 512KB sliding dictionary, static huffman | Yes     | No     |
+| `-lk7-` | LHARK's `-lh7-`                                  | Yes     | No     |
+| `-lzs-` | LArc 2KB sliding dictionary                      | Yes     | No     |
+| `-lz4-` | LArc stored, no compression                      | Yes     | No     |
+| `-lz5-` | LArc 4KB sliding dictionary                      | Yes     | No     |
+| `-lhd-` | Directory or symbolic link, no data              | Yes     | Yes    |
+| `-pm0-` | PMarc stored, no compression                     | Yes     | No     |
+| `-pm1-` | PMarc 16KB history                               | Yes     | No     |
+| `-pm2-` | PMarc2 8KB sliding dictionary                    | Yes     | No     |
+
+`-lh2-` and `-lh3-` were short-lived experimental methods, which are rarely found in archives.
+
+Headers level 0, 1, 2 and 3 can be read and headers level 0, 1 and 2 can be written. LHARK archives using `-lh7-` are detected and reported as method `-lk7-`.
+
+Additional methods can be supported by adding decoders implementing `ILhaDecoder` to `LhaOptions.Decoders`.
 
 ## Usage
 
@@ -26,13 +42,19 @@ var lhaArchive = new LhaArchive(stream);
 
 foreach (var entry in await lhaArchive.Entries())
 {
+    if (entry.Method == LhaMethod.Lhd)
+    {
+        Directory.CreateDirectory(entry.Name);
+        continue;
+    }
+
     var dirName = Path.GetDirectoryName(entry.Name) ?? string.Empty;
 
     if (!string.IsNullOrEmpty(dirName) && !Directory.Exists(dirName))
     {
         Directory.CreateDirectory(dirName);
     }
-    
+
     await using var output = File.OpenWrite(entry.Name);
     lhaArchive.Extract(entry, output);
 }
@@ -50,3 +72,39 @@ await using var entryStream = lhaArchive.OpenEntry(entry);
 using var reader = new StreamReader(entryStream);
 var text = await reader.ReadToEndAsync();
 ```
+
+The CRC of the extracted data is verified when the end of the entry stream is reached and an `IOException` is thrown, if it doesn't match.
+
+Example of creating a lha archive with a directory and a file compressed with `-lh5-` using header level 2:
+
+```
+await using var stream = File.Create("test.lha");
+using var lhaWriter = new LhaWriter(stream, new LhaWriterOptions
+{
+    Method = LhaMethod.Lh5,
+    HeaderLevel = 2
+});
+
+lhaWriter.AddDirectory("dir");
+
+await using var data = File.OpenRead("test.txt");
+lhaWriter.AddFile("dir/test.txt", data, File.GetLastWriteTime("test.txt"));
+```
+
+Data that can't be compressed to a smaller size is stored using method `-lh0-`. The end of archive marker is written, when the lha writer is disposed or `Finish()` is called.
+
+## Public api
+
+| Type                 | Description                                                                     |
+|----------------------|---------------------------------------------------------------------------------|
+| `LhaArchive`         | Read entries and extract or open entries as streams.                           |
+| `LhaReader`          | Read entries one by one from a stream.                                          |
+| `LhaEntry`           | Entry with name, method, sizes, date, crc, attributes and unix metadata.        |
+| `LhaEntryStream`     | Stream, which decompresses entry data as it's read and verifies crc at the end. |
+| `LhaOptions`         | Encoding of names and additional decoders.                                      |
+| `ILhaDecoder`        | Interface for additional decoders created by `LhaDecoderFactory`.               |
+| `LhaWriter`          | Create lha archives by adding directories and files.                            |
+| `LhaWriterOptions`   | Encoding, header level, method and generic format used for writing.            |
+| `LhaMethod`          | Compression method identifiers, e.g. `LhaMethod.Lh5` for `-lh5-`.               |
+| `LhaOsType`          | Operating system types stored in headers, e.g. `LhaOsType.Amiga`.               |
+| `LhaUnixMode`        | Unix file type and permission bits of `LhaEntry.UnixMode`.                      |

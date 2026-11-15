@@ -1,0 +1,13 @@
+Hst.Compression third party notices
+===================================
+
+Hst.Compression is licensed under the MIT license (see license.txt) and includes
+code based on the following third party projects.
+
+
+unlzx
+-----
+
+The lzx reader and extractor (Lzx directory) are based on unlzx.c 1.1 from
+Aminet, https://aminet.net/misc/unix/unlzx.c.gz (pipe support added by Erik Meusel).
+The unlzx.c source doesn't state a license.

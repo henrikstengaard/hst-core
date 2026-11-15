@@ -17,39 +17,50 @@
         public LhaArchive(Stream stream, LhaOptions options)
         {
             this.stream = stream;
-            this.options = options;
+            this.options = options ?? LhaOptions.Default;
         }
 
-        public async Task<IEnumerable<LzHeader>> Entries()
+        public async Task<IEnumerable<LhaEntry>> Entries()
         {
             var lhaReader = new LhaReader(stream, options);
-            var entries = new List<LzHeader>();
-            LzHeader header;
+            var entries = new List<LhaEntry>();
+            LhaEntry entry;
             do
             {
-                header = await lhaReader.Read();
+                entry = await lhaReader.Read();
 
-                if (header == null)
+                if (entry == null)
                 {
                     continue;
                 }
 
-                entries.Add(header);
-            } while (header != null);
+                entries.Add(entry);
+            } while (entry != null);
 
             return entries;
         }
 
-        public void Extract(LzHeader header, Stream outputStream)
+        /// <summary>
+        /// Extract entry data to output stream. CRC of extracted data is verified.
+        /// </summary>
+        /// <param name="entry">Entry to extract.</param>
+        /// <param name="outputStream">Output stream to write extracted data to.</param>
+        public void Extract(LhaEntry entry, Stream outputStream)
         {
-            stream.Seek(header.HeaderOffset + header.HeaderSize, SeekOrigin.Begin);
-            
-            LhExt.ExtractOne(stream, outputStream, header);
+            using (var entryStream = OpenEntry(entry))
+            {
+                entryStream.CopyTo(outputStream);
+            }
         }
 
-        public LhaEntryStream OpenEntry(LzHeader header)
+        /// <summary>
+        /// Open entry as a stream, which decompresses (extracts) data as it's read.
+        /// </summary>
+        /// <param name="entry">Entry to open.</param>
+        /// <returns>Entry stream.</returns>
+        public LhaEntryStream OpenEntry(LhaEntry entry)
         {
-            return new LhaEntryStream(stream, header);
+            return new LhaEntryStream(stream, entry, options);
         }
 
         public void Dispose()

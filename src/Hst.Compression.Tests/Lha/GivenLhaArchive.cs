@@ -22,7 +22,7 @@
             // assert - entry "test.txt" is equal
             var entry1 = entries.FirstOrDefault(x => x.Name == "test.txt");
             Assert.NotNull(entry1);
-            Assert.Equal(15, entry1.OriginalSize);
+            Assert.Equal(15, entry1.UnpackedSize);
             Assert.Equal(15, entry1.PackedSize);
             
             // act - extract entry "test.txt" data
@@ -30,12 +30,12 @@
             lhaArchive.Extract(entry1, dataStream1);
             
             // assert - entry "test.txt" data length is equal
-            Assert.Equal(entry1.OriginalSize, dataStream1.Length);
+            Assert.Equal(entry1.UnpackedSize, dataStream1.Length);
             
             // assert - entry "test1.info" is equal
             var entry2 = entries.FirstOrDefault(x => x.Name == "test1.info");
             Assert.NotNull(entry2);
-            Assert.Equal(900, entry2.OriginalSize);
+            Assert.Equal(900, entry2.UnpackedSize);
             Assert.Equal(435, entry2.PackedSize);
 
             // act - extract entry "test1.info" data
@@ -43,12 +43,12 @@
             lhaArchive.Extract(entry2, dataStream2);
 
             // assert - entry "test1.info" data length is equal
-            Assert.Equal(entry2.OriginalSize, dataStream2.Length);
+            Assert.Equal(entry2.UnpackedSize, dataStream2.Length);
             
             // assert - entry "test1\test1.txt" is equal
             var entry3 = entries.FirstOrDefault(x => x.Name == @"test1\test1.txt");
             Assert.NotNull(entry3);
-            Assert.Equal(15, entry3.OriginalSize);
+            Assert.Equal(15, entry3.UnpackedSize);
             Assert.Equal(15, entry3.PackedSize);
 
             // act - extract entry "test1\test1.txt" data
@@ -56,12 +56,12 @@
             lhaArchive.Extract(entry3, dataStream3);
 
             // assert - entry "test1\test1.txt" data length is equal
-            Assert.Equal(entry3.OriginalSize, dataStream3.Length);
+            Assert.Equal(entry3.UnpackedSize, dataStream3.Length);
             
             // assert - entry "test1\test2.info" is equal
             var entry4 = entries.FirstOrDefault(x => x.Name == @"test1\test2.info");
             Assert.NotNull(entry4);
-            Assert.Equal(900, entry4.OriginalSize);
+            Assert.Equal(900, entry4.UnpackedSize);
             Assert.Equal(432, entry4.PackedSize);
 
             // act - extract entry "test1\test2.info" data
@@ -69,12 +69,12 @@
             lhaArchive.Extract(entry4, dataStream4);
 
             // assert - entry "test1\test2.info" data length is equal
-            Assert.Equal(entry4.OriginalSize, dataStream4.Length);
+            Assert.Equal(entry4.UnpackedSize, dataStream4.Length);
 
             // assert - entry "test1\test2\test2.txt" is equal
             var entry5 = entries.FirstOrDefault(x => x.Name == @"test1\test2\test2.txt");
             Assert.NotNull(entry5);
-            Assert.Equal(15, entry5.OriginalSize);
+            Assert.Equal(15, entry5.UnpackedSize);
             Assert.Equal(15, entry5.PackedSize);
 
             // act - extract entry "test1\test2\test2.txt" data
@@ -82,7 +82,7 @@
             lhaArchive.Extract(entry5, dataStream5);
 
             // assert - entry "test1\test2\test2.txt" data length is equal
-            Assert.Equal(entry5.OriginalSize, dataStream5.Length);
+            Assert.Equal(entry5.UnpackedSize, dataStream5.Length);
         }
 
         [Fact]
@@ -99,14 +99,14 @@
             // assert - entry "test.txt" exist and uses lh0 method
             var entry = entries.FirstOrDefault(x => x.Name == "test.txt");
             Assert.NotNull(entry);
-            Assert.Equal(Constants.LZHUFF0_METHOD,entry.Method);
+            Assert.Equal(LhaMethod.Lh0,entry.Method);
 
             // act - extract entry
             await using var output = new MemoryStream();
             lhaArchive.Extract(entry, output);
             
             // assert - output size is equal to entry uncompressed length
-            Assert.Equal(entry.OriginalSize, output.Length);
+            Assert.Equal(entry.UnpackedSize, output.Length);
         }
         
         [Fact]
@@ -123,14 +123,14 @@
             // assert - entry "file1" exist and uses lh6 method
             var entry = entries.FirstOrDefault(x => x.Name == "file1");
             Assert.NotNull(entry);
-            Assert.Equal(Constants.LZHUFF6_METHOD,entry.Method);
+            Assert.Equal(LhaMethod.Lh6,entry.Method);
 
             // act - extract entry
             await using var output = new MemoryStream();
             lhaArchive.Extract(entry, output);
             
             // assert - output size is equal to entry uncompressed length
-            Assert.Equal(entry.OriginalSize, output.Length);
+            Assert.Equal(entry.UnpackedSize, output.Length);
         }
         
         [Fact]
@@ -147,14 +147,14 @@
             // assert - entry "file1" exist and uses lh7 method
             var entry = entries.FirstOrDefault(x => x.Name == "file1");
             Assert.NotNull(entry);
-            Assert.Equal(Constants.LZHUFF7_METHOD,entry.Method);
+            Assert.Equal(LhaMethod.Lh7,entry.Method);
 
             // act - extract entry
             await using var output = new MemoryStream();
             lhaArchive.Extract(entry, output);
             
             // assert - output size is equal to entry uncompressed length
-            Assert.Equal(entry.OriginalSize, output.Length);
+            Assert.Equal(entry.UnpackedSize, output.Length);
         }
         
         [Fact]
@@ -182,14 +182,14 @@
             Assert.Single(entries);
             var entry = entries.FirstOrDefault();
             Assert.NotNull(entry);
-            Assert.Equal(Constants.LZHUFF5_METHOD,entry.Method);
+            Assert.Equal(LhaMethod.Lh5,entry.Method);
 
             // act - extract entry
             await using var output = new MemoryStream();
             lhaArchive.Extract(entry, output);
             
             // assert - output size is equal to entry uncompressed length
-            Assert.Equal(entry.OriginalSize, output.Length);
+            Assert.Equal(entry.UnpackedSize, output.Length);
         }
         
         [Fact]
@@ -242,8 +242,8 @@
                 }
 
                 // assert - entry stream bytes are equal to extracted bytes
-                Assert.Equal(entry.OriginalSize, entryStream.Length);
-                Assert.Equal(entry.OriginalSize, entryStream.Position);
+                Assert.Equal(entry.UnpackedSize, entryStream.Length);
+                Assert.Equal(entry.UnpackedSize, entryStream.Position);
                 Assert.Equal(expectedStream.ToArray(), actualStream.ToArray());
             }
         }

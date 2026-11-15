@@ -4,86 +4,86 @@ namespace Hst.Compression.Lha
     using System.IO;
 
     /// <summary>
-    /// Read-only stream decompressing a lha entry on demand as it's read.
+    /// Read-only stream decompressing (extracting) a lha entry on demand as it's read.
+    /// Supports methods: -lh0-, -lh1-, -lh4-, -lh5-, -lh6-, -lh7-, -lhx-, -lk7-, -lzs-, -lz4-, -lz5-, -lhd-, -pm0-,
+    /// -pm1- and -pm2-. Additional methods can be supported by adding decoders to <see cref="LhaOptions.Decoders"/>.
     /// </summary>
+    /// <remarks>
+    /// If the archive stream is seekable, the archive stream position is restored before each read, so multiple
+    /// entry streams can be read interleaved from the same archive stream.
+    /// If the archive stream is not seekable, it must be positioned at the start of the entry data and is read
+    /// sequentially.
+    /// The CRC of the extracted data is verified, when the end of the entry is reached.
+    /// </remarks>
     public class LhaEntryStream : Stream
     {
-        private readonly Stream stream;
-        private readonly LzHeader header;
-        private readonly CrcIo crcIo;
-        private readonly bool isStored;
-        private readonly byte[] storedBuffer;
-
-        // sliding dictionary decode state, see Slide.Decode
-        private readonly IDecoder decoder;
-        private readonly Lha lha;
-        private readonly BitIo bitIo;
-        private readonly byte[] dtext;
-        private readonly long dicsiz1;
-        private readonly int adjust;
-        private int loc;
-        private int matchRemaining;
-        private uint matchPos;
-
-        private long streamPosition;
+        private readonly LhaEntry entry;
+        private readonly ILhaDecoder decoder;
+        private ushort crc;
         private long position;
         private bool verified;
 
-        public LhaEntryStream(Stream stream, LzHeader header, bool extractBrokenArchive = false)
+        /// <summary>
+        /// Create entry stream for lha entry in archive stream.
+        /// </summary>
+        /// <param name="stream">Archive stream entry was read from.</param>
+        /// <param name="entry">Entry to read.</param>
+        public LhaEntryStream(Stream stream, LhaEntry entry) : this(stream, entry, LhaOptions.Default)
         {
-            if (!stream.CanRead || !stream.CanSeek)
+        }
+
+        /// <summary>
+        /// Create entry stream for lha entry in archive stream.
+        /// </summary>
+        /// <param name="stream">Archive stream entry was read from.</param>
+        /// <param name="entry">Entry to read.</param>
+        /// <param name="options">Options with additional decoders.</param>
+        public LhaEntryStream(Stream stream, LhaEntry entry, LhaOptions options)
+            : this(stream, entry, entry == null ? 0 : entry.HeaderOffset + entry.HeaderSize, options)
+        {
+        }
+
+        /// <summary>
+        /// Create entry stream for lha entry data starting at data offset.
+        /// </summary>
+        /// <param name="stream">Stream to read entry data from.</param>
+        /// <param name="entry">Entry to read.</param>
+        /// <param name="dataOffset">Offset in stream where entry data starts. Ignored for non-seekable streams.</param>
+        /// <param name="options">Options with additional decoders.</param>
+        internal LhaEntryStream(Stream stream, LhaEntry entry, long dataOffset, LhaOptions options)
+        {
+            if (stream == null)
             {
-                throw new ArgumentException("Stream must be readable and seekable", nameof(stream));
+                throw new ArgumentNullException(nameof(stream));
             }
 
-            LhExt.EnsureSupportedMethod(header);
+            if (entry == null)
+            {
+                throw new ArgumentNullException(nameof(entry));
+            }
 
-            this.stream = stream;
-            this.header = header;
-            crcIo = new CrcIo();
-            crcIo.InitializeCrc();
-            streamPosition = header.HeaderOffset + header.HeaderSize;
+            if (!stream.CanRead)
+            {
+                throw new ArgumentException("Stream must be readable", nameof(stream));
+            }
+
+            this.entry = entry;
+            var packedData = new PackedDataStream(stream, dataOffset, entry.PackedSize);
+            decoder = LhaDecoders.Create(packedData, entry, options);
+            crc = 0;
             position = 0;
             verified = false;
-
-            var method = Extract.GetMethodNum(header.Method);
-            var dicBit = Extract.GetDicBit(header.Method);
-
-            if (dicBit == 0)
-            {
-                /* LZHUFF0_DICBIT or LARC4_DICBIT or PMARC0_DICBIT*/
-                isStored = true;
-                storedBuffer = new byte[Constants.BUFFERSIZE];
-                return;
-            }
-
-            this.stream.Seek(streamPosition, SeekOrigin.Begin);
-
-            decoder = Slide.GetDecoder(method);
-            bitIo = new BitIo(stream, (int)header.OriginalSize, (int)header.PackedSize);
-            lha = new Lha(dicBit, bitIo, crcIo);
-
-            var dicsiz = 1L << dicBit;
-            dtext = new byte[dicsiz];
-            for (var i = 0; i < dicsiz; i++)
-            {
-                dtext[i] = (byte)(extractBrokenArchive ? 0 : ' ');
-            }
-
-            decoder.DecodeStart(lha);
-            streamPosition = this.stream.Position;
-
-            dicsiz1 = dicsiz - 1;
-            adjust = 256 - Constants.THRESHOLD;
-            if (method == Constants.LARC_METHOD_NUM || method == Constants.PMARC2_METHOD_NUM)
-            {
-                adjust = 256 - 2;
-            }
-
-            loc = 0;
-            matchRemaining = 0;
-            matchPos = 0;
         }
+
+        /// <summary>
+        /// Entry read.
+        /// </summary>
+        public LhaEntry Entry => entry;
+
+        /// <summary>
+        /// CRC-16 of data read so far.
+        /// </summary>
+        public ushort Crc => crc;
 
         public override int Read(byte[] buffer, int offset, int count)
         {
@@ -97,7 +97,8 @@ namespace Hst.Compression.Lha
                 throw new ArgumentOutOfRangeException(nameof(count));
             }
 
-            var remaining = header.OriginalSize - position;
+            // decoders can decode past end of data, so reading is limited to unpacked size
+            var remaining = entry.UnpackedSize - position;
             if (count > remaining)
             {
                 count = (int)remaining;
@@ -109,78 +110,19 @@ namespace Hst.Compression.Lha
                 return 0;
             }
 
-            // restore archive stream position, so other reads of archive stream doesn't affect entry stream
-            stream.Seek(streamPosition, SeekOrigin.Begin);
+            var bytesRead = decoder.Read(buffer, offset, count);
+            if (bytesRead == 0)
+            {
+                throw new IOException(
+                    $"Unexpected end of compressed data for \"{entry.Name}\" at {position} of {entry.UnpackedSize} bytes");
+            }
 
-            var bytesRead = isStored ? ReadStored(buffer, offset, count) : ReadDecoded(buffer, offset, count);
-
-            streamPosition = stream.Position;
+            crc = Crc16.Update(crc, buffer, offset, bytesRead);
             position += bytesRead;
 
-            if (position >= header.OriginalSize)
+            if (position >= entry.UnpackedSize)
             {
                 Verify();
-            }
-
-            return bytesRead;
-        }
-
-        private int ReadStored(byte[] buffer, int offset, int count)
-        {
-            var bytesRead = 0;
-            while (bytesRead < count)
-            {
-                var size = Math.Min(count - bytesRead, storedBuffer.Length);
-                var read = stream.Read(storedBuffer, 0, size);
-                if (read == 0)
-                {
-                    throw new IOException("file read error");
-                }
-
-                Array.Copy(storedBuffer, 0, buffer, offset + bytesRead, read);
-                crcIo.calccrc(storedBuffer, (uint)read);
-                bytesRead += read;
-            }
-
-            return bytesRead;
-        }
-
-        private int ReadDecoded(byte[] buffer, int offset, int count)
-        {
-            var bytesRead = 0;
-            while (bytesRead < count)
-            {
-                byte c;
-                if (matchRemaining > 0)
-                {
-                    c = dtext[matchPos++ & dicsiz1];
-                    matchRemaining--;
-                }
-                else
-                {
-                    var code = decoder.DecodeC(lha);
-                    if (code < 256)
-                    {
-                        c = (byte)code;
-                    }
-                    else
-                    {
-                        var matchLength = code - adjust;
-                        var matchOffset = (uint)decoder.DecodeP(lha) + 1;
-                        matchPos = (uint)((loc - matchOffset) & dicsiz1);
-                        c = dtext[matchPos++ & dicsiz1];
-                        matchRemaining = matchLength - 1;
-                    }
-                }
-
-                dtext[loc++] = c;
-                if (loc > dicsiz1)
-                {
-                    loc = 0;
-                }
-
-                crcIo.UPDATE_CRC(c);
-                buffer[offset + bytesRead++] = c;
             }
 
             return bytesRead;
@@ -195,22 +137,16 @@ namespace Hst.Compression.Lha
 
             verified = true;
 
-            var readSize = isStored ? position : header.PackedSize - bitIo.compsize;
-            if (header.PackedSize != readSize)
+            if (entry.HasCrc && crc != (ushort)entry.Crc)
             {
-                throw new IOException($"Read size {readSize} doesnt match packed size {header.PackedSize}");
-            }
-
-            if (header.HasCrc && (short)crcIo.crc != header.Crc)
-            {
-                throw new IOException($"CRC error: \"{header.Name}\"");
+                throw new IOException($"CRC error: \"{entry.Name}\"");
             }
         }
 
         public override bool CanRead => true;
         public override bool CanSeek => false;
         public override bool CanWrite => false;
-        public override long Length => header.OriginalSize;
+        public override long Length => entry.UnpackedSize;
 
         public override long Position
         {
