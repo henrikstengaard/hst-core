@@ -6,29 +6,17 @@ See more at [Hst Core](src/Hst.Core) section.
 
 ## Hst Compression
 
-Hst Compression is a library for reading and extracting compression file formats.
+Hst Compression is a library for reading, extracting and creating compression file formats.
 
 Features:
-- Read and extract lha archives.
+- Read, extract and create lha archives.
 - Read and extract lzx archives.
 
 See more at [Hst Compression](src/Hst.Compression) section.
 
-## Hst Compression Lha
-
-Hst Compression Lha is a library for creating lha archives and extracting -lh2- and -lh3- methods based on LHa for UNIX.
-
-Features:
-- Create lha archives.
-- Extract -lh2- and -lh3- methods.
-
-Hst Compression Lha is distributed under the LHa for UNIX redistribution terms, not the MIT license. See more at [Hst Compression Lha](src/Hst.Compression.Lha) section.
-
 ## Licenses
 
 Hst Core, Hst Compression, Hst Imaging and Hst Imaging Pngcs are licensed under the MIT license, see [license.txt](license.txt). Hst Compression includes code ported from Lhasa (ISC license), see [THIRD-PARTY-NOTICES.txt](src/Hst.Compression/THIRD-PARTY-NOTICES.txt).
-
-Hst Compression Lha is distributed under the LHa for UNIX redistribution terms, see [license.txt](src/Hst.Compression.Lha/license.txt).
 
 ## Hst Imaging
 

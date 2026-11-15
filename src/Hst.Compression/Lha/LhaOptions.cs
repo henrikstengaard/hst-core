@@ -15,7 +15,6 @@ namespace Hst.Compression.Lha
 
         /// <summary>
         /// Additional decoders by method, e.g. "-lh2-". Decoders added here take precedence over built-in decoders.
-        /// Hst.Compression.Lha package adds decoders for -lh2- and -lh3- methods with AddLhaForUnixDecoders().
         /// </summary>
         public IDictionary<string, LhaDecoderFactory> Decoders { get; }
 

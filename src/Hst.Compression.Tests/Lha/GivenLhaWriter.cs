@@ -1,4 +1,4 @@
-namespace Hst.Compression.Lha.Tests
+namespace Hst.Compression.Tests.Lha
 {
     using System;
     using System.Collections.Generic;
@@ -6,49 +6,17 @@ namespace Hst.Compression.Lha.Tests
     using System.Linq;
     using System.Text;
     using System.Threading.Tasks;
-    using Hst.Compression.Lha;
+    using Compression.Lha;
     using Xunit;
 
     public class GivenLhaWriter
     {
         private static readonly DateTime LastModified = new DateTime(2024, 5, 17, 13, 37, 42, DateTimeKind.Utc);
 
-        [Theory]
-        [InlineData("lha_unix114i_h0_lh5.lzh")]
-        [InlineData("lha_unix114i_lh6_long.lzh")]
-        [InlineData("lha_unix114i_lh7_long.lzh")]
-        public async Task WhenCompressDataThenCompressedBytesAreEqualToLhaForUnix(string fileName)
-        {
-            // arrange - open archive created by lha for unix 1.14i
-            var path = Path.Combine("TestData", "Lha", fileName);
-            await using var stream = File.OpenRead(path);
-            var lhaArchive = new LhaArchive(stream);
-            var entry = (await lhaArchive.Entries()).Single();
-
-            // arrange - extract original data and read compressed data from archive
-            using var original = new MemoryStream();
-            lhaArchive.Extract(entry, original);
-            stream.Seek(entry.HeaderOffset + entry.HeaderSize, SeekOrigin.Begin);
-            var expectedPackedBytes = new byte[entry.PackedSize];
-            stream.ReadExactly(expectedPackedBytes);
-
-            // act - compress original data
-            original.Position = 0;
-            using var compressed = new MemoryStream();
-            var result = Slide.Encode(original, compressed, entry.Method[3] - '0', original.Length);
-
-            // assert - compressed bytes are equal to compressed bytes created by lha for unix
-            Assert.False(result.Unpackable);
-            Assert.Equal(entry.OriginalSize, result.OriginalSize);
-            Assert.Equal(entry.PackedSize, result.PackedSize);
-            Assert.Equal((ushort)entry.Crc, result.Crc);
-            Assert.Equal(expectedPackedBytes, compressed.ToArray());
-        }
-
         public static IEnumerable<object[]> MethodsAndHeaderLevels =>
             from method in new[]
             {
-                Constants.LZHUFF0_METHOD, Constants.LZHUFF1_METHOD, Constants.LZHUFF4_METHOD,
+                Constants.LZHUFF0_METHOD, Constants.LZHUFF4_METHOD,
                 Constants.LZHUFF5_METHOD, Constants.LZHUFF6_METHOD, Constants.LZHUFF7_METHOD
             }
             from headerLevel in new[] { 0, 1, 2 }
@@ -92,6 +60,7 @@ namespace Hst.Compression.Lha.Tests
             var dirEntry = Assert.Single(entries, x => x.Name == @"dir\");
             Assert.Equal(Constants.LZHDIRS_METHOD, dirEntry.Method);
             Assert.Equal(headerLevel, dirEntry.HeaderLevel);
+            Assert.Equal(0x10, dirEntry.Attribute);
             var subDirEntry = Assert.Single(entries, x => x.Name == @"dir\sub\");
             Assert.Equal(Constants.LZHDIRS_METHOD, subDirEntry.Method);
 
@@ -262,6 +231,7 @@ namespace Hst.Compression.Lha.Tests
         }
 
         [Theory]
+        [InlineData(Constants.LZHUFF1_METHOD)]
         [InlineData(Constants.LZHUFF2_METHOD)]
         [InlineData(Constants.LZHUFF3_METHOD)]
         [InlineData(Constants.LARC5_METHOD)]

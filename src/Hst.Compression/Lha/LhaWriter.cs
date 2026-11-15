@@ -1,13 +1,3 @@
-/* ------------------------------------------------------------------------ */
-/* LHa for UNIX                                                             */
-/*              lhadd.c -- LHarc Add Command                                */
-/*              append.c -- append to archive                               */
-/*                                                                          */
-/*      Copyright (C) MCMLXXXIX Yooichi.Tagawa                              */
-/*      Modified                Nobutaka Watazaki                           */
-/*                                                                          */
-/*  Ver. 1.14   Source All chagned              1995.01.14  N.Watazaki      */
-/* ------------------------------------------------------------------------ */
 namespace Hst.Compression.Lha
 {
     using System;
@@ -18,10 +8,10 @@ namespace Hst.Compression.Lha
     /// </summary>
     public class LhaWriter : IDisposable
     {
-        private const int GENERIC_ATTRIBUTE = 0x20;
-        private const int GENERIC_DIRECTORY_ATTRIBUTE = 0x10;
-        private const ushort DEFAULT_FILE_MODE = Constants.UNIX_FILE_REGULAR | 0x1a4; /* 0644 */
-        private const ushort DEFAULT_DIRECTORY_MODE = Constants.UNIX_FILE_DIRECTORY | 0x1ed; /* 0755 */
+        private const int FILE_ATTRIBUTE = 0x20;
+        private const int DIRECTORY_ATTRIBUTE = 0x10;
+        private const ushort FILE_MODE = Constants.UNIX_FILE_REGULAR | 0x1a4; /* 0644 */
+        private const ushort DIRECTORY_MODE = Constants.UNIX_FILE_DIRECTORY | 0x1ed; /* 0755 */
 
         private readonly Stream stream;
         private readonly LhaWriterOptions options;
@@ -30,6 +20,10 @@ namespace Hst.Compression.Lha
         private bool finished;
         private bool disposed;
 
+        /// <summary>
+        /// Create lha writer with default options.
+        /// </summary>
+        /// <param name="stream">Stream to write lha archive to.</param>
         public LhaWriter(Stream stream) : this(stream, LhaWriterOptions.Default)
         {
         }
@@ -62,51 +56,39 @@ namespace Hst.Compression.Lha
                     nameof(options));
             }
 
-            GetCompressMethodNum(this.options.Method);
+            ValidateMethod(this.options.Method);
 
-            headerWriter = new HeaderWriter(this.options.Encoding, this.options.GenericFormat);
+            headerWriter = new HeaderWriter(this.options.Encoding, !this.options.GenericFormat);
         }
 
-        private static int GetCompressMethodNum(string method)
+        private static void ValidateMethod(string method)
         {
             switch (method)
             {
                 case Constants.LZHUFF0_METHOD:
-                    return LhConstants.LZHUFF0_METHOD_NUM;
-                case Constants.LZHUFF1_METHOD:
-                    return LhConstants.LZHUFF1_METHOD_NUM;
                 case Constants.LZHUFF4_METHOD:
-                    return LhConstants.LZHUFF4_METHOD_NUM;
                 case Constants.LZHUFF5_METHOD:
-                    return LhConstants.LZHUFF5_METHOD_NUM;
                 case Constants.LZHUFF6_METHOD:
-                    return LhConstants.LZHUFF6_METHOD_NUM;
                 case Constants.LZHUFF7_METHOD:
-                    return LhConstants.LZHUFF7_METHOD_NUM;
+                    return;
                 default:
                     throw new NotSupportedException($"Compression method \"{method}\" is not supported");
             }
         }
-
-        private static string NormalizeName(string name) => name.Replace('/', '\\');
 
         private LzHeader CreateHeader(string name, DateTime lastModified)
         {
             return new LzHeader
             {
                 Method = Constants.LZHUFF0_METHOD,
-                PackedSize = 0,
-                OriginalSize = 0,
-                Attribute = GENERIC_ATTRIBUTE,
+                Attribute = FILE_ATTRIBUTE,
                 HeaderLevel = options.HeaderLevel,
-                Name = NormalizeName(name),
-                Crc = 0,
+                SizeFieldLength = 2,
+                Name = name.Replace('/', '\\'),
                 HasCrc = true,
                 ExtendType = options.GenericFormat ? Constants.EXTEND_GENERIC : Constants.EXTEND_UNIX,
                 UnixLastModifiedStamp = lastModified,
-                UnixMode = DEFAULT_FILE_MODE,
-                UnixUid = 0,
-                UnixGid = 0
+                UnixMode = FILE_MODE
             };
         }
 
@@ -123,11 +105,9 @@ namespace Hst.Compression.Lha
             }
         }
 
-        private void WriteHeader(LzHeader hdr)
+        private void WriteHeader(LzHeader header, Stream output)
         {
-            var headerBytes = headerWriter.Write(hdr);
-            hdr.HeaderSize = headerBytes.Length;
-            stream.Write(headerBytes, 0, headerBytes.Length);
+            header.HeaderSize = headerWriter.Write(header, output);
         }
 
         /// <summary>
@@ -145,25 +125,25 @@ namespace Hst.Compression.Lha
                 throw new ArgumentNullException(nameof(name));
             }
 
-            var hdr = CreateHeader(name, lastModified ?? DateTime.Now);
-            hdr.Method = Constants.LZHDIRS_METHOD;
-            hdr.Attribute = GENERIC_DIRECTORY_ATTRIBUTE;
-            hdr.UnixMode = DEFAULT_DIRECTORY_MODE;
-            if (!hdr.Name.EndsWith("\\", StringComparison.Ordinal))
+            var header = CreateHeader(name, lastModified ?? DateTime.Now);
+            header.Method = Constants.LZHDIRS_METHOD;
+            header.Attribute = DIRECTORY_ATTRIBUTE;
+            header.UnixMode = DIRECTORY_MODE;
+            if (!header.Name.EndsWith("\\", StringComparison.Ordinal))
             {
-                hdr.Name += "\\";
+                header.Name += "\\";
             }
 
-            hdr.HeaderOffset = stream.CanSeek ? stream.Position : 0;
-            WriteHeader(hdr);
+            header.HeaderOffset = stream.CanSeek ? stream.Position : 0;
+            WriteHeader(header, stream);
 
-            return hdr;
+            return header;
         }
 
         /// <summary>
         /// Add file entry to lha archive. Data is read from current position to end of data stream and compressed
         /// using method from options. If compressed data is not smaller than original data, data is stored using
-        /// method lh0 instead.
+        /// method -lh0- instead.
         /// </summary>
         /// <param name="name">Name of file. Path separators '/' and '\' are supported.</param>
         /// <param name="data">Stream with data of file.</param>
@@ -184,9 +164,10 @@ namespace Hst.Compression.Lha
                 throw new ArgumentNullException(nameof(data));
             }
 
-            var methodNum = GetCompressMethodNum(method ?? options.Method);
+            method = method ?? options.Method;
+            ValidateMethod(method);
 
-            // data stream must be seekable to retry with stored method, if data can't be compressed
+            // data stream must be seekable to store data, if it can't be compressed
             MemoryStream dataBuffer = null;
             if (!data.CanSeek)
             {
@@ -199,45 +180,48 @@ namespace Hst.Compression.Lha
             try
             {
                 var size = data.Length - data.Position;
-                if (size > int.MaxValue)
+                if (size > uint.MaxValue)
                 {
-                    throw new ArgumentException("Files larger than 2GB are not supported", nameof(data));
+                    throw new ArgumentException("Files larger than 4GB are not supported", nameof(data));
                 }
 
-                var hdr = CreateHeader(name, lastModified ?? DateTime.Now);
-                hdr.OriginalSize = size;
-                hdr.HeaderOffset = stream.CanSeek ? stream.Position : 0;
+                var header = CreateHeader(name, lastModified ?? DateTime.Now);
+                header.OriginalSize = size;
+                header.HeaderOffset = stream.CanSeek ? stream.Position : 0;
+
+                // validate header before data is written
+                headerWriter.Write(header);
 
                 if (size == 0)
                 {
-                    /* empty file */
-                    WriteHeader(hdr);
-                    return hdr;
+                    WriteHeader(header, stream);
+                    return header;
                 }
 
                 if (stream.CanSeek)
                 {
-                    var headerPos = stream.Position;
-                    WriteHeader(hdr); /* DUMMY */
-                    EncodeData(hdr, data, stream, methodNum, size);
-                    var nextPos = stream.Position;
-                    stream.Seek(headerPos, SeekOrigin.Begin);
-                    WriteHeader(hdr);
-                    stream.Seek(nextPos, SeekOrigin.Begin);
+                    // write header to reserve space, header is written again when packed size and crc is known
+                    var headerOffset = stream.Position;
+                    WriteHeader(header, stream);
+                    WriteData(header, data, stream, method, size);
+                    var nextOffset = stream.Position;
+                    stream.Seek(headerOffset, SeekOrigin.Begin);
+                    WriteHeader(header, stream);
+                    stream.Seek(nextOffset, SeekOrigin.Begin);
                 }
                 else
                 {
-                    // non-seekable stream, compress data into buffer before writing header and data
+                    // compress data into buffer before writing header and data to non-seekable stream
                     using (var packedBuffer = new MemoryStream())
                     {
-                        EncodeData(hdr, data, packedBuffer, methodNum, size);
-                        WriteHeader(hdr);
+                        WriteData(header, data, packedBuffer, method, size);
+                        WriteHeader(header, stream);
                         packedBuffer.Position = 0;
                         packedBuffer.CopyTo(stream);
                     }
                 }
 
-                return hdr;
+                return header;
             }
             finally
             {
@@ -246,39 +230,49 @@ namespace Hst.Compression.Lha
         }
 
         /// <summary>
-        /// Encode data and update header with method, crc and sizes. Equivalent of add_one in lhadd.c.
+        /// Write data compressed with method or stored, if compressed data isn't smaller than original data.
+        /// Header is updated with method, crc and sizes.
         /// </summary>
-        private static void EncodeData(LzHeader hdr, Stream data, Stream output, int methodNum, long size)
+        private static void WriteData(LzHeader header, Stream data, Stream output, string method, long size)
         {
-            var orgPos = data.Position;
-            var dataPos = output.Position;
+            var dataOffset = data.Position;
+            var outputOffset = output.Position;
 
-            if (methodNum > 0)
+            if (method != Constants.LZHUFF0_METHOD)
             {
-                var result = Slide.Encode(data, output, methodNum, size);
-                if (!result.Unpackable && result.PackedSize < result.OriginalSize)
+                // compressed data is limited to less than original size, so stored data overwrites it completely
+                var result = LhEncoder.Create(method).Encode(data, output, size, size - 1);
+                if (!result.LimitExceeded)
                 {
-                    hdr.Method = $"-lh{methodNum}-";
-                    hdr.Crc = (short)result.Crc;
-                    hdr.OriginalSize = result.OriginalSize;
-                    hdr.PackedSize = result.PackedSize;
+                    header.Method = method;
+                    header.Crc = (short)result.Crc;
+                    header.PackedSize = result.PackedSize;
                     return;
                 }
 
-                /* retry by stored method */
-                data.Seek(orgPos, SeekOrigin.Begin);
-                output.Seek(dataPos, SeekOrigin.Begin);
+                data.Seek(dataOffset, SeekOrigin.Begin);
+                output.Seek(outputOffset, SeekOrigin.Begin);
             }
 
-            var crcIo = new CrcIo();
-            crcIo.InitializeCrc();
-            /* stored data overwrites compressed data written, which is never larger than original size */
-            var storedSize = Util.CopyFile(data, output, (int)size, false, crcIo);
+            ushort crc = 0;
+            var buffer = new byte[32768];
+            var remaining = size;
+            while (remaining > 0)
+            {
+                var bytesRead = data.Read(buffer, 0, (int)Math.Min(buffer.Length, remaining));
+                if (bytesRead == 0)
+                {
+                    throw new EndOfStreamException("Unexpected end of data");
+                }
 
-            hdr.Method = Constants.LZHUFF0_METHOD;
-            hdr.Crc = (short)crcIo.crc;
-            hdr.OriginalSize = storedSize;
-            hdr.PackedSize = storedSize;
+                crc = Crc16.Update(crc, buffer, 0, bytesRead);
+                output.Write(buffer, 0, bytesRead);
+                remaining -= bytesRead;
+            }
+
+            header.Method = Constants.LZHUFF0_METHOD;
+            header.Crc = (short)crc;
+            header.PackedSize = size;
         }
 
         /// <summary>
@@ -301,6 +295,9 @@ namespace Hst.Compression.Lha
             finished = true;
         }
 
+        /// <summary>
+        /// Finish lha archive and dispose stream, unless it's left open.
+        /// </summary>
         public void Dispose()
         {
             if (disposed)

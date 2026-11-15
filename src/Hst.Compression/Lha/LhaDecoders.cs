@@ -44,12 +44,6 @@ namespace Hst.Compression.Lha
                 return factory(packedData, header);
             }
 
-            if (header.Method == Constants.LZHUFF2_METHOD || header.Method == Constants.LZHUFF3_METHOD)
-            {
-                throw new NotSupportedException(
-                    $"Method \"{header.Method}\" of \"{header.Name}\" requires decoders from Hst.Compression.Lha package added to options with AddLhaForUnixDecoders()");
-            }
-
             throw new NotSupportedException($"Method \"{header.Method}\" of \"{header.Name}\" is not supported");
         }
     }

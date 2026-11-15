@@ -18,13 +18,13 @@ namespace Hst.Compression.Lha
         public int HeaderLevel { get; set; }
 
         /// <summary>
-        /// Compression method used for files, supports "-lh0-", "-lh1-", "-lh4-", "-lh5-", "-lh6-" and "-lh7-".
+        /// Compression method used for files, supports "-lh0-", "-lh4-", "-lh5-", "-lh6-" and "-lh7-".
         /// Default is "-lh5-".
         /// </summary>
         public string Method { get; set; }
 
         /// <summary>
-        /// Write generic headers without unix extended headers (unix permissions, uid and gid).
+        /// Write generic headers without unix extended headers (unix timestamp, permissions, uid and gid).
         /// Default is false.
         /// </summary>
         public bool GenericFormat { get; set; }

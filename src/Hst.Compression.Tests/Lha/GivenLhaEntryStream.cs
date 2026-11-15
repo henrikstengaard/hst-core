@@ -112,7 +112,7 @@
         [Theory]
         [InlineData(Constants.LZHUFF2_METHOD)]
         [InlineData(Constants.LZHUFF3_METHOD)]
-        public void WhenExtractLh2OrLh3WithoutDecodersThenNotSupportedExceptionIsThrown(string method)
+        public void WhenExtractLh2OrLh3ThenNotSupportedExceptionIsThrown(string method)
         {
             var header = new LzHeader
             {
@@ -124,7 +124,7 @@
 
             var exception = Assert.Throws<NotSupportedException>(() =>
                 new LhaEntryStream(new MemoryStream(new byte[10]), header, 0, LhaOptions.Default));
-            Assert.Contains("Hst.Compression.Lha", exception.Message);
+            Assert.Contains("is not supported", exception.Message);
         }
 
         [Fact]
