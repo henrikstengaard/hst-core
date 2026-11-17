@@ -7,10 +7,16 @@
 
     public static class StreamExtensions
     {
+        /// <summary>
+        /// Read bytes from stream. Reads until count bytes are read or end of stream is reached.
+        /// </summary>
+        /// <param name="stream">Stream to read from.</param>
+        /// <param name="count">Number of bytes to read.</param>
+        /// <returns>Bytes read. Fewer than count bytes, if end of stream is reached.</returns>
         public static async Task<byte[]> ReadBytes(this Stream stream, int count)
         {
             var data = new byte[count];
-            var bytesRead = await stream.ReadAsync(data, 0, count);
+            var bytesRead = await ReadFully(stream, data);
             if (bytesRead == 0)
             {
                 return Array.Empty<byte>();
@@ -24,6 +30,44 @@
             var partialData = new byte[bytesRead];
             Array.Copy(data, 0, partialData, 0, bytesRead);
             return partialData;
+        }
+
+        /// <summary>
+        /// Read until buffer is filled or end of stream is reached.
+        /// </summary>
+        /// <returns>Number of bytes read.</returns>
+        private static async Task<int> ReadFully(Stream stream, byte[] buffer)
+        {
+            var total = 0;
+            while (total < buffer.Length)
+            {
+                var bytesRead = await stream.ReadAsync(buffer, total, buffer.Length - total);
+                if (bytesRead == 0)
+                {
+                    break;
+                }
+
+                total += bytesRead;
+            }
+
+            return total;
+        }
+
+        /// <summary>
+        /// Read exactly count bytes from stream.
+        /// </summary>
+        /// <exception cref="EndOfStreamException">End of stream is reached before count bytes are read.</exception>
+        private static async Task<byte[]> ReadExactly(Stream stream, int count)
+        {
+            var data = new byte[count];
+            var bytesRead = await ReadFully(stream, data);
+            if (bytesRead != count)
+            {
+                throw new EndOfStreamException(
+                    $"Unable to read {count} bytes, end of stream reached after {bytesRead} bytes");
+            }
+
+            return data;
         }
 
         public static async Task WriteByte(this Stream stream, byte value)
@@ -42,9 +86,10 @@
         /// </summary>
         /// <param name="stream"></param>
         /// <returns></returns>
+        /// <exception cref="EndOfStreamException">End of stream is reached before value is read.</exception>
         public static async Task<short> ReadBigEndianInt16(this Stream stream)
         {
-            return BigEndianConverter.ConvertBytesToInt16(await stream.ReadBytes(2));
+            return BigEndianConverter.ConvertBytesToInt16(await ReadExactly(stream, 2));
         }
 
         /// <summary>
@@ -52,9 +97,10 @@
         /// </summary>
         /// <param name="stream"></param>
         /// <returns></returns>
+        /// <exception cref="EndOfStreamException">End of stream is reached before value is read.</exception>
         public static async Task<int> ReadBigEndianInt32(this Stream stream)
         {
-            return BigEndianConverter.ConvertBytesToInt32(await stream.ReadBytes(4));
+            return BigEndianConverter.ConvertBytesToInt32(await ReadExactly(stream, 4));
         }
 
         /// <summary>
@@ -62,9 +108,10 @@
         /// </summary>
         /// <param name="stream"></param>
         /// <returns></returns>
+        /// <exception cref="EndOfStreamException">End of stream is reached before value is read.</exception>
         public static async Task<ushort> ReadBigEndianUInt16(this Stream stream)
         {
-            return BigEndianConverter.ConvertBytesToUInt16(await stream.ReadBytes(2));
+            return BigEndianConverter.ConvertBytesToUInt16(await ReadExactly(stream, 2));
         }
         
         /// <summary>
@@ -72,9 +119,10 @@
         /// </summary>
         /// <param name="stream"></param>
         /// <returns></returns>
+        /// <exception cref="EndOfStreamException">End of stream is reached before value is read.</exception>
         public static async Task<uint> ReadBigEndianUInt32(this Stream stream)
         {
-            return BigEndianConverter.ConvertBytesToUInt32(await stream.ReadBytes(4));
+            return BigEndianConverter.ConvertBytesToUInt32(await ReadExactly(stream, 4));
         }
 
         /// <summary>
