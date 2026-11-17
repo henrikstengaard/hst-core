@@ -170,59 +170,62 @@
         }
         
         /// <summary>
-        /// Find first occurence of byte pattern in stream
+        /// Find first occurrence of byte pattern in stream, searching from current position.
         /// </summary>
-        /// <param name="stream"></param>
-        /// <param name="pattern"></param>
-        /// <returns></returns>
+        /// <param name="stream">Stream to search. Position of stream after search is undefined.</param>
+        /// <param name="pattern">Byte pattern to find.</param>
+        /// <returns>Stream position of first byte of pattern or -1, if pattern is not found.</returns>
+        /// <exception cref="ArgumentNullException">Stream or pattern is null.</exception>
+        /// <exception cref="ArgumentException">Pattern is empty.</exception>
         public static async Task<long> Find(this Stream stream, byte[] pattern)
         {
-            var chunkSize = 32768;
-            byte[] chunk;
-            do
+            if (stream == null)
             {
-                var position = stream.Position;
-                chunk = await stream.ReadBytes(chunkSize);
+                throw new ArgumentNullException(nameof(stream));
+            }
 
-                if (chunk.Length == 0)
+            if (pattern == null)
+            {
+                throw new ArgumentNullException(nameof(pattern));
+            }
+
+            if (pattern.Length == 0)
+            {
+                throw new ArgumentException("Pattern must contain at least one byte", nameof(pattern));
+            }
+
+            const int chunkSize = 32768;
+
+            // bytes kept from end of buffer between reads, so a pattern spanning two reads is found
+            var overlap = pattern.Length - 1;
+            var buffer = new byte[overlap + chunkSize];
+
+            // stream position of first byte in buffer
+            var bufferPosition = stream.Position;
+            var length = 0;
+
+            while (true)
+            {
+                var bytesRead = await stream.ReadAsync(buffer, length, buffer.Length - length);
+                if (bytesRead == 0)
                 {
-                    break;
+                    return -1;
                 }
-                
-                for (var i = 0; i < chunk.Length; i++)
+
+                length += bytesRead;
+
+                var index = buffer.AsSpan(0, length).IndexOf(pattern);
+                if (index >= 0)
                 {
-                    // skip, if first byte is not equal
-                    if (chunk[i] != pattern[0])
-                    {
-                        continue;
-                    }
-        
-                    // found a match on first byte, now try to match rest of the pattern
-                    var patternIndex = 1;
-                    for (var j = 1; j < pattern.Length; j++, patternIndex++) 
-                    {
-                        if (j + i >= chunk.Length)
-                        {
-                            chunk = await stream.ReadBytes(chunkSize);
-                            i = 0;
-                            patternIndex = 0;
-                        }
-
-                        if (chunk[i + patternIndex] != pattern[j])
-                        {
-                            break;
-                        }
-
-                        if (j == pattern.Length - 1)
-                        {
-                            return position + i;
-                        }
-                    }
+                    return bufferPosition + index;
                 }
-                
-            } while (chunk.Length == chunkSize);
-            
-            return -1;
+
+                // keep last bytes, which can be start of pattern continuing in next read
+                var keep = Math.Min(overlap, length);
+                Array.Copy(buffer, length - keep, buffer, 0, keep);
+                bufferPosition += length - keep;
+                length = keep;
+            }
         }
     }
 }
