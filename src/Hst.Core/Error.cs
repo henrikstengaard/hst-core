@@ -1,8 +1,14 @@
 ﻿namespace Hst.Core
 {
+    /// <summary>
+    /// Error describing why an operation failed.
+    /// </summary>
     public class Error
     {
-        public readonly string Message;
+        /// <summary>
+        /// Message describing error.
+        /// </summary>
+        public string Message { get; }
 
         public Error()
         {

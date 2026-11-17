@@ -28,6 +28,20 @@
             var totalColors = binaryReader.ReadUInt32();
             var importantColors = binaryReader.ReadUInt32();
 
+            if (bitsPerPixel != 1 && bitsPerPixel != 4 && bitsPerPixel != 8 && bitsPerPixel != 24 &&
+                bitsPerPixel != 32)
+            {
+                throw new NotSupportedException(
+                    $"Bitmap with {bitsPerPixel} bits per pixel is not supported, only 1, 4, 8, 24 and 32 bits per pixel are supported");
+            }
+
+            // 0 = BI_RGB (uncompressed), 3 = BI_BITFIELDS (uncompressed with channel bit masks)
+            if (compression != 0 && !(compression == 3 && bitsPerPixel == 32))
+            {
+                throw new NotSupportedException(
+                    $"Bitmap with compression {compression} is not supported, only uncompressed bitmaps are supported");
+            }
+
             uint redChannelBitMask = 0;
             uint greenChannelBitMask = 0;
             uint blueChannelBitMask = 0;
@@ -53,7 +67,9 @@
             var colors = new List<Color>();
             if (bitsPerPixel <= 8)
             {
-                for (var i = 0; i < totalColors; i++)
+                // total colors of 0 means palette has maximum number of colors for bits per pixel
+                var paletteColors = totalColors == 0 ? 1U << bitsPerPixel : totalColors;
+                for (var i = 0; i < paletteColors; i++)
                 {
                     var b = binaryReader.ReadByte();
                     var g = binaryReader.ReadByte();
@@ -84,7 +100,13 @@
                 {
                     if (bitsPerPixel < 8)
                     {
-                        throw new NotImplementedException();
+                        // unpack palette color index from 1 or 4 bits per pixel, most significant bits first
+                        var bitOffset = x * bitsPerPixel;
+                        var shift = 8 - bitsPerPixel - bitOffset % 8;
+                        data[imagePixelOffset] =
+                            (byte)((scanlineData[bitOffset / 8] >> shift) & ((1 << bitsPerPixel) - 1));
+                        imagePixelOffset++;
+                        continue;
                     }
                     
                     if (bitsPerPixel == 8)

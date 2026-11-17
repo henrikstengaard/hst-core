@@ -54,9 +54,11 @@
 
             if (image.BitsPerPixel <= 8)
             {
-                // write palette RGB color backwards BGR
-                foreach (var color in image.Palette.Colors)
+                // write palette RGB color backwards BGR, limited to maximum number of colors for bits per pixel
+                var paletteColors = Math.Min(image.Palette.Colors.Count, totalColors);
+                for (var i = 0; i < paletteColors; i++)
                 {
+                    var color = image.Palette.Colors[i];
                     binaryWriter.Write((byte)color.B); // blue
                     binaryWriter.Write((byte)color.G); // green
                     binaryWriter.Write((byte)color.R); // red
@@ -64,7 +66,7 @@
                 }
 
                 // write unused palette colors as zeros
-                for (var i = image.Palette.Colors.Count; i < totalColors; i++)
+                for (var i = paletteColors; i < totalColors; i++)
                 {
                     binaryWriter.Write(new byte[4]);
                 }
@@ -82,7 +84,13 @@
                 {
                     if (image.BitsPerPixel < 8)
                     {
-                        throw new NotImplementedException();
+                        // pack palette color index into 1 or 4 bits per pixel, most significant bits first
+                        var bitOffset = x * image.BitsPerPixel;
+                        var shift = 8 - image.BitsPerPixel - bitOffset % 8;
+                        bitmapScanLineData[bitOffset / 8] |= (byte)((image.PixelData[imagePixelOffset] &
+                                                                     ((1 << image.BitsPerPixel) - 1)) << shift);
+                        imagePixelOffset++;
+                        continue;
                     }
 
                     if (image.BitsPerPixel == 8)

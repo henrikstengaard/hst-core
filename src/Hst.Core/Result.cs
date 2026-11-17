@@ -2,49 +2,72 @@
 {
     using System;
 
+    /// <summary>
+    /// Result of an operation, which is either successful or faulted with an error.
+    /// </summary>
     public class Result
     {
-        public enum ResultState : byte
-        {
-            Faulted,
-            Success
-        }
-
-        private readonly ResultState State;
-        public readonly Error Error;
-
+        /// <summary>
+        /// Create successful result.
+        /// </summary>
         public Result()
         {
-            State = ResultState.Success;
             Error = null;
         }
 
+        /// <summary>
+        /// Create faulted result with error.
+        /// </summary>
+        /// <param name="error">Error describing why operation failed.</param>
         public Result(Error error)
         {
-            State = ResultState.Faulted;
             Error = error ?? throw new ArgumentNullException(nameof(error));
         }
 
-        public bool IsSuccess =>
-            State == ResultState.Success;
+        /// <summary>
+        /// Error, if result is faulted. Otherwise null.
+        /// </summary>
+        public Error Error { get; }
 
-        public bool IsFaulted =>
-            State == ResultState.Faulted;
+        /// <summary>
+        /// Result is successful.
+        /// </summary>
+        public bool IsSuccess => Error == null;
+
+        /// <summary>
+        /// Result is faulted with an error.
+        /// </summary>
+        public bool IsFaulted => Error != null;
     }
 
+    /// <summary>
+    /// Result of an operation, which is either successful with a value or faulted with an error.
+    /// </summary>
+    /// <typeparam name="T">Type of value.</typeparam>
     public class Result<T> : Result
     {
-        public readonly T Value;
-
+        /// <summary>
+        /// Create successful result with value.
+        /// </summary>
+        /// <param name="value">Value of result.</param>
         public Result(T value)
         {
             Value = value;
         }
 
+        /// <summary>
+        /// Create faulted result with error.
+        /// </summary>
+        /// <param name="error">Error describing why operation failed.</param>
         public Result(Error error)
             : base(error)
         {
             Value = default;
         }
+
+        /// <summary>
+        /// Value, if result is successful. Otherwise default value of type.
+        /// </summary>
+        public T Value { get; }
     }
 }

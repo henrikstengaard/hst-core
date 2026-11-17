@@ -32,7 +32,7 @@ public class GivenLzxArchiveWithoutMergedEntries
             var lzxArchive = new LzxArchive(stream);
             
             // act - read entries
-            var entries = (await lzxArchive.Entries()).ToList();
+            var entries = (await lzxArchive.EntriesAsync()).ToList();
             
             // assert - lzx archive contains expected entry names
             var expectedNames = new[]
@@ -73,7 +73,7 @@ public class GivenLzxArchiveWithoutMergedEntries
             
             // act - iterate entries
             var entries = new List<LzxEntry>();
-            while (await lzxArchive.Next() is { } lzxEntry)
+            while (await lzxArchive.NextAsync() is { } lzxEntry)
             {
                 entries.Add(lzxEntry);
             }
@@ -117,7 +117,7 @@ public class GivenLzxArchiveWithoutMergedEntries
             
             // act - extract entries
             var entries = new List<LzxEntry>();
-            while (await lzxArchive.Next() is { } lzxEntry)
+            while (await lzxArchive.NextAsync() is { } lzxEntry)
             {
                 entries.Add(lzxEntry);
 
@@ -130,7 +130,7 @@ public class GivenLzxArchiveWithoutMergedEntries
                 byte[] actualBytes;
                 using (var memoryStream = new MemoryStream())
                 {
-                    await lzxArchive.Extract(memoryStream);
+                    await lzxArchive.ExtractCurrentAsync(memoryStream);
                     actualBytes = memoryStream.ToArray();
                 }
                 
@@ -168,7 +168,7 @@ public class GivenLzxArchiveWithoutMergedEntries
         // arrange - lzx archive from file
         await using var stream = File.OpenRead(_lzxPath);
         var lzxArchive = new LzxArchive(stream);
-        var entries = (await lzxArchive.Entries()).ToList();
+        var entries = (await lzxArchive.EntriesAsync()).ToList();
 
         foreach (var entry in entries)
         {
@@ -184,7 +184,7 @@ public class GivenLzxArchiveWithoutMergedEntries
     private static async Task<byte[]> ReadEntryStream(LzxArchive lzxArchive, LzxEntry entry)
     {
         // read with small buffer to read across decrunch boundaries
-        await using var entryStream = await lzxArchive.OpenEntry(entry);
+        await using var entryStream = await lzxArchive.OpenEntryAsync(entry);
         using var memoryStream = new MemoryStream();
         var buffer = new byte[7];
         int bytesRead;

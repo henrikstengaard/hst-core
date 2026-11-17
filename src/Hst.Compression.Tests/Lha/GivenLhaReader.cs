@@ -23,7 +23,7 @@
             LhaEntry header;
             do
             {
-                header = await lhaReader.Read();
+                header = await lhaReader.ReadAsync();
             
                 if (header == null)
                 {
@@ -83,7 +83,7 @@
             LhaEntry header;
             do
             {
-                header = await lhaReader.Read();
+                header = await lhaReader.ReadAsync();
             
                 if (header == null)
                 {
@@ -143,7 +143,7 @@
             LhaEntry header;
             do
             {
-                header = await lhaReader.Read();
+                header = await lhaReader.ReadAsync();
             
                 if (header == null)
                 {
@@ -203,7 +203,7 @@
             LhaEntry header;
             do
             {
-                header = await lhaReader.Read();
+                header = await lhaReader.ReadAsync();
             
                 if (header == null)
                 {
@@ -251,7 +251,7 @@
             LhaEntry header;
             do
             {
-                header = await lhaReader.Read();
+                header = await lhaReader.ReadAsync();
 
                 if (header == null)
                 {
@@ -309,7 +309,7 @@
             LhaEntry header;
             do
             {
-                header = await lhaReader.Read();
+                header = await lhaReader.ReadAsync();
 
                 if (header == null)
                 {

@@ -1,6 +1,7 @@
 ﻿namespace Hst.Compression.Lha
 {
     using System.IO;
+    using System.Threading;
     using System.Threading.Tasks;
 
     /// <summary>
@@ -22,15 +23,16 @@
         /// <summary>
         /// Read header of next entry.
         /// </summary>
+        /// <param name="token">Cancellation token.</param>
         /// <returns>Header of next entry or null, if end of archive is reached.</returns>
-        public async Task<LhaEntry> Read()
+        public async Task<LhaEntry> ReadAsync(CancellationToken token = default)
         {
             if (current != null)
             {
                 stream.Seek(current.HeaderOffset + current.HeaderSize + current.PackedSize, SeekOrigin.Begin);
             }
 
-            current = await headerReader.Read(stream);
+            current = await headerReader.ReadAsync(stream, token);
             return current;
         }
     }

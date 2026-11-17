@@ -88,7 +88,7 @@ public class GivenLzxArchiveWithMergedEntries
             var lzxArchive = new LzxArchive(stream);
 
             // act - read entries
-            var entries = (await lzxArchive.Entries()).ToList();
+            var entries = (await lzxArchive.EntriesAsync()).ToList();
 
             // assert - lzx archive contains expected entries
             AssertEntries(ExpectedEntries, entries);
@@ -122,7 +122,7 @@ public class GivenLzxArchiveWithMergedEntries
 
             // act - iterate archive entries
             var entries = new List<LzxEntry>();
-            while (await lzxArchive.Next() is { } entry)
+            while (await lzxArchive.NextAsync() is { } entry)
             {
                 entries.Add(entry);
             }
@@ -159,7 +159,7 @@ public class GivenLzxArchiveWithMergedEntries
 
             // act - iterate archive entries
             var entries = new List<LzxEntry>();
-            while (await lzxArchive.Next() is { } entry)
+            while (await lzxArchive.NextAsync() is { } entry)
             {
                 entries.Add(entry);
 
@@ -167,7 +167,7 @@ public class GivenLzxArchiveWithMergedEntries
                 byte[] actualBytes;
                 using (var memoryStream = new MemoryStream())
                 {
-                    await lzxArchive.Extract(memoryStream);
+                    await lzxArchive.ExtractCurrentAsync(memoryStream);
                     actualBytes = memoryStream.ToArray();
                 }
 
@@ -198,7 +198,7 @@ public class GivenLzxArchiveWithMergedEntries
         // arrange - lzx archive from file
         await using var stream = File.OpenRead(_lzxPath);
         var lzxArchive = new LzxArchive(stream);
-        var entries = (await lzxArchive.Entries()).ToList();
+        var entries = (await lzxArchive.EntriesAsync()).ToList();
 
         // act - open entry streams in reverse order, so merged entries are read out of order
         foreach (var entry in Enumerable.Reverse(entries))
@@ -217,13 +217,13 @@ public class GivenLzxArchiveWithMergedEntries
         // arrange - lzx archive from file
         await using var stream = File.OpenRead(_lzxPath);
         var lzxArchive = new LzxArchive(stream);
-        var entries = (await lzxArchive.Entries()).ToList();
+        var entries = (await lzxArchive.EntriesAsync()).ToList();
         var entry1 = entries.First(x => x.Name == "xpkCRM2.library");
         var entry2 = entries.First(x => x.Name == "xpkRAKE.library");
 
         // act - open entry streams and read them interleaved
-        await using var entryStream1 = await lzxArchive.OpenEntry(entry1);
-        await using var entryStream2 = await lzxArchive.OpenEntry(entry2);
+        await using var entryStream1 = await lzxArchive.OpenEntryAsync(entry1);
+        await using var entryStream2 = await lzxArchive.OpenEntryAsync(entry2);
         using var actualStream1 = new MemoryStream();
         using var actualStream2 = new MemoryStream();
         var buffer = new byte[100];
@@ -246,7 +246,7 @@ public class GivenLzxArchiveWithMergedEntries
     private static async Task<byte[]> ReadEntryStream(LzxArchive lzxArchive, LzxEntry entry)
     {
         // read with small buffer to read across decrunch boundaries
-        await using var entryStream = await lzxArchive.OpenEntry(entry);
+        await using var entryStream = await lzxArchive.OpenEntryAsync(entry);
         using var memoryStream = new MemoryStream();
         var buffer = new byte[7];
         int bytesRead;

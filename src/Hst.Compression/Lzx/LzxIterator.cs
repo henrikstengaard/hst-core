@@ -2,6 +2,7 @@
 {
     using System.Collections.Generic;
     using System.IO;
+    using System.Threading;
     using System.Threading.Tasks;
 
     internal class LzxIterator
@@ -29,7 +30,7 @@
         /// Read next entry
         /// </summary>
         /// <returns>Entry</returns>
-        public async Task<LzxEntry> Next()
+        public async Task<LzxEntry> NextAsync(CancellationToken token = default)
         {
             // iterate over current entry compressed data using seek, if current entry has packed data
             // and was not extracted.
@@ -44,7 +45,7 @@
             // read next merged chunk, if merged chunk is empty
             if (IsMergedChunkEmpty)
             {
-                this.mergedChunk = await ReadNextMergedChunk();
+                this.mergedChunk = await ReadNextMergedChunk(token);
 
                 this.MergedChunkEntryIndex = 0;
                 
@@ -68,14 +69,14 @@
         /// </summary>
         /// <returns></returns>
         /// <exception cref="IOException"></exception>
-        private async Task<LzxMergedChunk> ReadNextMergedChunk()
+        private async Task<LzxMergedChunk> ReadNextMergedChunk(CancellationToken token)
         {
             var entries = new List<LzxEntry>();
 
             LzxEntry entry;
             do
             {
-                entry = await reader.Read();
+                entry = await reader.ReadAsync(token);
 
                 if (entry == null)
                 {
@@ -99,15 +100,15 @@
         /// </summary>
         /// <param name="outputStream"></param>
         /// <exception cref="IOException"></exception>
-        public async Task Extract(Stream outputStream)
+        public async Task ExtractAsync(Stream outputStream, CancellationToken token = default)
         {
             switch (this.mergedChunk.PackMode)
             {
                 case PackModeEnum.Store:
-                    await extractor.ExtractStore(this.CurrentEntry, outputStream);
+                    await extractor.ExtractStore(this.CurrentEntry, outputStream, token);
                     break;
                 case PackModeEnum.Normal:
-                    await extractor.ExtractNormal(this.CurrentEntry, outputStream);
+                    await extractor.ExtractNormal(this.CurrentEntry, outputStream, token);
                     break;
                 default:
                     throw new IOException($"Unknown pack mode {(int)this.mergedChunk.PackMode}'");

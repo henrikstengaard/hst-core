@@ -37,10 +37,9 @@ Additional methods can be supported by adding decoders implementing `ILhaDecoder
 Example of extracting files from a lha archive:
 
 ```
-await using var stream = File.OpenRead("test.lha");
-var lhaArchive = new LhaArchive(stream);
+using var lhaArchive = new LhaArchive(File.OpenRead("test.lha"));
 
-foreach (var entry in await lhaArchive.Entries())
+foreach (var entry in await lhaArchive.EntriesAsync())
 {
     if (entry.Method == LhaMethod.Lhd)
     {
@@ -56,24 +55,25 @@ foreach (var entry in await lhaArchive.Entries())
     }
 
     await using var output = File.OpenWrite(entry.Name);
-    lhaArchive.Extract(entry, output);
+    await lhaArchive.ExtractAsync(entry, output);
 }
 ```
 
 Example of opening an entry in a lha archive as a stream, which decompresses data as it's read:
 
 ```
-await using var stream = File.OpenRead("test.lha");
-var lhaArchive = new LhaArchive(stream);
+using var lhaArchive = new LhaArchive(File.OpenRead("test.lha"));
 
-var entry = (await lhaArchive.Entries()).First(x => x.Name == "test.txt");
+var entry = (await lhaArchive.EntriesAsync()).First(x => x.Name == "test.txt");
 
-await using var entryStream = lhaArchive.OpenEntry(entry);
+await using var entryStream = await lhaArchive.OpenEntryAsync(entry);
 using var reader = new StreamReader(entryStream);
 var text = await reader.ReadToEndAsync();
 ```
 
 The CRC of the extracted data is verified when the end of the entry stream is reached and an `IOException` is thrown, if it doesn't match.
+
+The archive disposes the stream, when it's disposed. Use `new LhaArchive(stream, options, leaveOpen: true)` to keep the stream open. All async methods accept an optional `CancellationToken`.
 
 Example of creating a lha archive with a directory and a file compressed with `-lh5-` using header level 2:
 

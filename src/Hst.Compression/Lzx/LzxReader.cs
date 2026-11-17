@@ -2,6 +2,7 @@
 {
     using System;
     using System.IO;
+    using System.Threading;
     using System.Threading.Tasks;
 
     internal class LzxReader
@@ -27,13 +28,13 @@
         /// </summary>
         /// <param name="stream"></param>
         /// <returns></returns>
-        public async Task<LzxEntry> Read()
+        public async Task<LzxEntry> ReadAsync(CancellationToken token = default)
         {
             // read info header, if first entry
             if (isFirst)
             {
                 var infoHeaderBytes = new byte[InfoHeaderSize];
-                if (await stream.ReadAsync(infoHeaderBytes, 0, infoHeaderBytes.Length) != infoHeaderBytes.Length)
+                if (await stream.ReadAsync(infoHeaderBytes, 0, infoHeaderBytes.Length, token) != infoHeaderBytes.Length)
                 {
                     throw new IOException("Failed to info header");
                 }
@@ -50,7 +51,7 @@
             var entryOffset = stream.Position;
             
             var archiveHeaderBytes = new byte[ArchiveHeaderSize];
-            var bytesRead = await stream.ReadAsync(archiveHeaderBytes, 0, ArchiveHeaderSize);
+            var bytesRead = await stream.ReadAsync(archiveHeaderBytes, 0, ArchiveHeaderSize, token);
 
             // end of archive
             var endOfArchive = bytesRead == 0;
@@ -75,7 +76,7 @@
             // read filename
             var filenameLength = archiveHeaderBytes[30]; /* filename length */
             var headerFilenameBytes = new byte[filenameLength];
-            if (await stream.ReadAsync(headerFilenameBytes, 0, filenameLength) != filenameLength)
+            if (await stream.ReadAsync(headerFilenameBytes, 0, filenameLength, token) != filenameLength)
             {
                 throw new IOException("Failed to read header filename");
             }
@@ -84,7 +85,7 @@
             sum = CrcHelper.crc_calc(headerFilenameBytes, 0, filenameLength, sum);
             var commentLength = archiveHeaderBytes[14]; /* comment length */
             var headerCommentBytes = new byte[commentLength];
-            if (await stream.ReadAsync(headerCommentBytes, 0, commentLength) != commentLength)
+            if (await stream.ReadAsync(headerCommentBytes, 0, commentLength, token) != commentLength)
             {
                 throw new IOException("Failed to read header comment");
             }
