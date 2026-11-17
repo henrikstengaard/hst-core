@@ -13,8 +13,9 @@
         <None Include="..\..\license.txt" Pack="true" PackagePath="\" />
     </ItemGroup>
 
-    <ItemGroup>
-      <PackageReference Include="Microsoft.Windows.Compatibility" Version="10.0.13" />
+    <!-- WindowsIdentity is in-box for net8.0+, only netstandard2.1 needs a package -->
+    <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
+      <PackageReference Include="System.Security.Principal.Windows" Version="5.0.0" />
     </ItemGroup>
 
 </Project>

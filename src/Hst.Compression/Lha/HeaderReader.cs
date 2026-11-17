@@ -4,6 +4,7 @@ namespace Hst.Compression.Lha
     using System.Collections.Generic;
     using System.IO;
     using System.Text;
+    using System.Threading;
     using System.Threading.Tasks;
 
     /// <summary>
@@ -87,12 +88,12 @@ namespace Hst.Compression.Lha
         /// </summary>
         /// <param name="stream">Stream positioned at start of header.</param>
         /// <returns>Header read or null, if end of archive is reached.</returns>
-        public async Task<LhaEntry> Read(Stream stream)
+        public async Task<LhaEntry> ReadAsync(Stream stream, CancellationToken token = default)
         {
             var headerOffset = stream.Position;
 
             var prefix = new byte[PREFIX_SIZE];
-            var prefixLength = await ReadFully(stream, prefix, 0, prefix.Length);
+            var prefixLength = await ReadFully(stream, prefix, 0, prefix.Length, token);
 
             // archive ends, when there's no room for another header or with a 0 byte (level 2 headers are padded to
             // never start with 0). The end may be followed by padding like ctrl-z in pmarc archives.
@@ -106,13 +107,13 @@ namespace Hst.Compression.Lha
             {
                 case 0:
                 case 1:
-                    await ReadLevel0Or1(stream, fields);
+                    await ReadLevel0Or1(stream, fields, token);
                     break;
                 case 2:
-                    await ReadLevel2(stream, fields);
+                    await ReadLevel2(stream, fields, token);
                     break;
                 case 3:
-                    await ReadLevel3(stream, fields);
+                    await ReadLevel3(stream, fields, token);
                     break;
                 default:
                     throw new IOException($"Unknown header level {fields.Level}");
@@ -128,12 +129,12 @@ namespace Hst.Compression.Lha
             return CreateEntry(fields, headerOffset);
         }
 
-        private static async Task<int> ReadFully(Stream stream, byte[] buffer, int offset, int count)
+        private static async Task<int> ReadFully(Stream stream, byte[] buffer, int offset, int count, CancellationToken token)
         {
             var total = 0;
             while (total < count)
             {
-                var read = await stream.ReadAsync(buffer, offset + total, count - total);
+                var read = await stream.ReadAsync(buffer, offset + total, count - total, token);
                 if (read == 0)
                 {
                     break;
@@ -148,7 +149,7 @@ namespace Hst.Compression.Lha
         /// <summary>
         /// Read more bytes of header and append them to header data.
         /// </summary>
-        private static async Task Append(Stream stream, Fields fields, int count)
+        private static async Task Append(Stream stream, Fields fields, int count, CancellationToken token)
         {
             if (count < 0 || fields.Data.Length + count > MAX_HEADER_SIZE)
             {
@@ -160,7 +161,7 @@ namespace Hst.Compression.Lha
             Array.Resize(ref data, offset + count);
             fields.Data = data;
 
-            if (await ReadFully(stream, data, offset, count) != count)
+            if (await ReadFully(stream, data, offset, count, token) != count)
             {
                 throw new IOException("Unexpected end of header");
             }
@@ -181,7 +182,7 @@ namespace Hst.Compression.Lha
             fields.Attributes = data[19];
         }
 
-        private async Task ReadLevel0Or1(Stream stream, Fields fields)
+        private async Task ReadLevel0Or1(Stream stream, Fields fields, CancellationToken token)
         {
             int size = fields.Data[0];
             var checksum = fields.Data[1];
@@ -191,7 +192,7 @@ namespace Hst.Compression.Lha
                 throw new IOException("Invalid header size");
             }
 
-            await Append(stream, fields, size + 2 - fields.Data.Length);
+            await Append(stream, fields, size + 2 - fields.Data.Length, token);
 
             var data = fields.Data;
             var sum = 0;
@@ -243,7 +244,7 @@ namespace Hst.Compression.Lha
             int nextSize;
             while ((nextSize = UInt16(fields.Data, fields.Data.Length - 2)) != 0)
             {
-                await Append(stream, fields, nextSize);
+                await Append(stream, fields, nextSize, token);
 
                 if (fields.PackedSize < nextSize || nextSize < 3)
                 {
@@ -256,7 +257,7 @@ namespace Hst.Compression.Lha
             ReadExtendedHeaders(fields, extendedHeadersOffset, 2);
         }
 
-        private async Task ReadLevel2(Stream stream, Fields fields)
+        private async Task ReadLevel2(Stream stream, Fields fields, CancellationToken token)
         {
             int size = UInt16(fields.Data, 0);
             if (size < LEVEL2_MIN_SIZE)
@@ -264,7 +265,7 @@ namespace Hst.Compression.Lha
                 throw new IOException("Invalid header size");
             }
 
-            await Append(stream, fields, size - fields.Data.Length);
+            await Append(stream, fields, size - fields.Data.Length, token);
 
             ReadCommonFields(fields);
             fields.Date = FromUnixTime(UInt32(fields.Data, 15));
@@ -275,20 +276,20 @@ namespace Hst.Compression.Lha
             // LHA for OS-9/68k writes level 2 header size without the size field itself
             if (fields.OsType == LhaOsType.Os68K)
             {
-                await Append(stream, fields, 2);
+                await Append(stream, fields, 2, token);
             }
 
             ReadExtendedHeaders(fields, 24, 2);
         }
 
-        private async Task ReadLevel3(Stream stream, Fields fields)
+        private async Task ReadLevel3(Stream stream, Fields fields, CancellationToken token)
         {
             if (UInt16(fields.Data, 0) != 4)
             {
                 throw new IOException("Invalid header word size");
             }
 
-            await Append(stream, fields, LEVEL3_BASE_SIZE - fields.Data.Length);
+            await Append(stream, fields, LEVEL3_BASE_SIZE - fields.Data.Length, token);
 
             var size = UInt32(fields.Data, 24);
             if (size > MAX_HEADER_SIZE || size < LEVEL3_BASE_SIZE)
@@ -296,7 +297,7 @@ namespace Hst.Compression.Lha
                 throw new IOException("Invalid header size");
             }
 
-            await Append(stream, fields, (int)size - fields.Data.Length);
+            await Append(stream, fields, (int)size - fields.Data.Length, token);
 
             ReadCommonFields(fields);
             fields.Date = FromUnixTime(UInt32(fields.Data, 15));

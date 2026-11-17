@@ -39,7 +39,7 @@ namespace Hst.Compression.Tests.Lha
             var lhaArchive = new LhaArchive(stream);
 
             // act - read entries
-            var entries = (await lhaArchive.Entries()).ToList();
+            var entries = (await lhaArchive.EntriesAsync()).ToList();
 
             // assert - archive contains entry with expected method
             Assert.NotEmpty(entries);
@@ -49,11 +49,11 @@ namespace Hst.Compression.Tests.Lha
             {
                 // act - extract entry, crc is verified
                 using var expectedStream = new MemoryStream();
-                lhaArchive.Extract(entry, expectedStream);
+                await lhaArchive.ExtractAsync(entry, expectedStream);
                 Assert.Equal(entry.UnpackedSize, expectedStream.Length);
 
                 // act - read entry stream with small buffer to read across decode boundaries
-                await using var entryStream = lhaArchive.OpenEntry(entry);
+                await using var entryStream = await lhaArchive.OpenEntryAsync(entry);
                 using var actualStream = new MemoryStream();
                 var buffer = new byte[7];
                 int bytesRead;
@@ -78,7 +78,7 @@ namespace Hst.Compression.Tests.Lha
             var lhaArchive = new LhaArchive(stream);
 
             // act - read entries
-            var entries = (await lhaArchive.Entries()).ToList();
+            var entries = (await lhaArchive.EntriesAsync()).ToList();
 
             // assert - symbolic link entry has name and real name
             var entry = Assert.Single(entries);
@@ -89,7 +89,7 @@ namespace Hst.Compression.Tests.Lha
 
             // act - extract symbolic link entry, which has no data
             using var output = new MemoryStream();
-            lhaArchive.Extract(entry, output);
+            await lhaArchive.ExtractAsync(entry, output);
             Assert.Equal(0, output.Length);
         }
     }

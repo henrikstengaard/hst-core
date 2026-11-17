@@ -2,6 +2,7 @@
 {
     using System;
     using System.IO;
+    using System.Threading;
     using System.Threading.Tasks;
 
     internal class LzxExtractor
@@ -50,7 +51,7 @@
             this.pack_size = mergedChunk?.PackSize ?? 0;
         }
 
-        public async Task ExtractStore(LzxEntry entry, Stream entryStream)
+        public async Task ExtractStore(LzxEntry entry, Stream entryStream, CancellationToken token = default)
         {
             var dataCrc = 0;
             var unpackSize = entry.UnpackedSize;
@@ -59,7 +60,7 @@
             while (unpackSize > 0)
             {
                 var count = unpackSize > buffer.Length ? buffer.Length : unpackSize;
-                var bytesRead = await stream.ReadAsync(buffer, 0, count);
+                var bytesRead = await stream.ReadAsync(buffer, 0, count, token);
                 if (bytesRead != count)
                 {
                     throw new IOException("Failed to read entry data");
@@ -67,7 +68,7 @@
 
                 dataCrc = CrcHelper.crc_calc(buffer, 0, count, dataCrc);
                 
-                await entryStream.WriteAsync(buffer, 0, bytesRead);
+                await entryStream.WriteAsync(buffer, 0, bytesRead, token);
                 
                 unpackSize -= count;
             }
@@ -78,7 +79,7 @@
             }
         }
 
-        public async Task ExtractNormal(LzxEntry entry, Stream entryStream)
+        public async Task ExtractNormal(LzxEntry entry, Stream entryStream, CancellationToken token = default)
         {
             var sum = 0; /* reset CRC */
 
@@ -94,7 +95,7 @@
                     {
                         var temp = PrepareReadBuffer(out count);
 
-                        var bytesRead = await stream.ReadAsync(read_buffer, temp, count);
+                        var bytesRead = await stream.ReadAsync(read_buffer, temp, count, token);
                         if (bytesRead != count)
                         {
                             throw new IOException("Failed to read data");
@@ -116,7 +117,7 @@
 
                 if (entryStream != null)
                 {
-                    await entryStream.WriteAsync(decrunch_buffer, pos, count);
+                    await entryStream.WriteAsync(decrunch_buffer, pos, count, token);
                 }
 
                 unpackSize -= count;

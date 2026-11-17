@@ -106,7 +106,7 @@ namespace Hst.Compression.Tests.Lha
             {
                 await using var stream = File.OpenRead(path);
                 var lhaArchive = new LhaArchive(stream);
-                foreach (var entry in await lhaArchive.Entries())
+                foreach (var entry in await lhaArchive.EntriesAsync())
                 {
                     if (entry.Method == LhaMethod.Lhd || entry.UnpackedSize == 0)
                     {
@@ -114,7 +114,7 @@ namespace Hst.Compression.Tests.Lha
                     }
 
                     using var original = new MemoryStream();
-                    lhaArchive.Extract(entry, original);
+                    await lhaArchive.ExtractAsync(entry, original);
                     var data = original.ToArray();
 
                     // act - encode and decode data

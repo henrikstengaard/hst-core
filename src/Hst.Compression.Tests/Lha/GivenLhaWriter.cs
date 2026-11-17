@@ -53,7 +53,7 @@ namespace Hst.Compression.Tests.Lha
             // act - read lha archive
             archiveStream.Position = 0;
             var lhaArchive = new LhaArchive(archiveStream);
-            var entries = (await lhaArchive.Entries()).ToList();
+            var entries = (await lhaArchive.EntriesAsync()).ToList();
 
             // assert - directories are read
             Assert.Equal(files.Count + 2, entries.Count);
@@ -74,7 +74,7 @@ namespace Hst.Compression.Tests.Lha
                 Assert.Equal(LastModified, entry.Date);
 
                 using var output = new MemoryStream();
-                lhaArchive.Extract(entry, output);
+                await lhaArchive.ExtractAsync(entry, output);
                 Assert.Equal(file.Value, output.ToArray());
             }
 
@@ -114,14 +114,14 @@ namespace Hst.Compression.Tests.Lha
             // act - read lha archive
             archiveStream.Position = 0;
             var lhaArchive = new LhaArchive(archiveStream);
-            var entry = Assert.Single(await lhaArchive.Entries());
+            var entry = Assert.Single(await lhaArchive.EntriesAsync());
 
             // assert - entry is read with equal data
             Assert.Equal(@"dir\file.txt", entry.Name);
             Assert.Equal(LhaOsType.Generic, entry.OsType);
             Assert.Equal(LhaMethod.Lh5, entry.Method);
             using var output = new MemoryStream();
-            lhaArchive.Extract(entry, output);
+            await lhaArchive.ExtractAsync(entry, output);
             Assert.Equal(data, output.ToArray());
         }
 
@@ -142,17 +142,17 @@ namespace Hst.Compression.Tests.Lha
 
             // act - read lha archive
             var lhaArchive = new LhaArchive(new MemoryStream(archiveStream.ToArray()));
-            var entries = (await lhaArchive.Entries()).ToList();
+            var entries = (await lhaArchive.EntriesAsync()).ToList();
 
             // assert - entries are read with equal data
             Assert.Equal(2, entries.Count);
             Assert.Equal(LhaMethod.Lh5, entries[0].Method);
             Assert.Equal(LhaMethod.Lh0, entries[1].Method);
             using var textOutput = new MemoryStream();
-            lhaArchive.Extract(entries[0], textOutput);
+            await lhaArchive.ExtractAsync(entries[0], textOutput);
             Assert.Equal(text, textOutput.ToArray());
             using var randomOutput = new MemoryStream();
-            lhaArchive.Extract(entries[1], randomOutput);
+            await lhaArchive.ExtractAsync(entries[1], randomOutput);
             Assert.Equal(random, randomOutput.ToArray());
         }
 
@@ -208,14 +208,14 @@ namespace Hst.Compression.Tests.Lha
             // act - read lha archive
             archiveStream.Position = 0;
             var lhaArchive = new LhaArchive(archiveStream);
-            var entries = (await lhaArchive.Entries()).ToList();
+            var entries = (await lhaArchive.EntriesAsync()).ToList();
 
             // assert - entries are read with equal names and data
             Assert.Equal(names, entries.Select(x => x.Name));
             foreach (var entry in entries)
             {
                 using var output = new MemoryStream();
-                lhaArchive.Extract(entry, output);
+                await lhaArchive.ExtractAsync(entry, output);
                 Assert.Equal(data, output.ToArray());
             }
         }

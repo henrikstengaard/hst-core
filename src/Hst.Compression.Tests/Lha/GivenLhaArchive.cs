@@ -17,7 +17,7 @@
             var lhaArchive = new LhaArchive(stream, LhaOptions.AmigaLhaOptions);
 
             // act - read entries
-            var entries = (await lhaArchive.Entries()).ToList();
+            var entries = (await lhaArchive.EntriesAsync()).ToList();
 
             // assert - entry "test.txt" is equal
             var entry1 = entries.FirstOrDefault(x => x.Name == "test.txt");
@@ -27,7 +27,7 @@
             
             // act - extract entry "test.txt" data
             using var dataStream1 = new MemoryStream();
-            lhaArchive.Extract(entry1, dataStream1);
+            await lhaArchive.ExtractAsync(entry1, dataStream1);
             
             // assert - entry "test.txt" data length is equal
             Assert.Equal(entry1.UnpackedSize, dataStream1.Length);
@@ -40,7 +40,7 @@
 
             // act - extract entry "test1.info" data
             using var dataStream2 = new MemoryStream();
-            lhaArchive.Extract(entry2, dataStream2);
+            await lhaArchive.ExtractAsync(entry2, dataStream2);
 
             // assert - entry "test1.info" data length is equal
             Assert.Equal(entry2.UnpackedSize, dataStream2.Length);
@@ -53,7 +53,7 @@
 
             // act - extract entry "test1\test1.txt" data
             using var dataStream3 = new MemoryStream();
-            lhaArchive.Extract(entry3, dataStream3);
+            await lhaArchive.ExtractAsync(entry3, dataStream3);
 
             // assert - entry "test1\test1.txt" data length is equal
             Assert.Equal(entry3.UnpackedSize, dataStream3.Length);
@@ -66,7 +66,7 @@
 
             // act - extract entry "test1\test2.info" data
             using var dataStream4 = new MemoryStream();
-            lhaArchive.Extract(entry4, dataStream4);
+            await lhaArchive.ExtractAsync(entry4, dataStream4);
 
             // assert - entry "test1\test2.info" data length is equal
             Assert.Equal(entry4.UnpackedSize, dataStream4.Length);
@@ -79,7 +79,7 @@
 
             // act - extract entry "test1\test2\test2.txt" data
             using var dataStream5 = new MemoryStream();
-            lhaArchive.Extract(entry5, dataStream5);
+            await lhaArchive.ExtractAsync(entry5, dataStream5);
 
             // assert - entry "test1\test2\test2.txt" data length is equal
             Assert.Equal(entry5.UnpackedSize, dataStream5.Length);
@@ -94,7 +94,7 @@
             var lhaArchive = new LhaArchive(stream);
 
             // act - read entries
-            var entries = (await lhaArchive.Entries()).ToList();
+            var entries = (await lhaArchive.EntriesAsync()).ToList();
 
             // assert - entry "test.txt" exist and uses lh0 method
             var entry = entries.FirstOrDefault(x => x.Name == "test.txt");
@@ -103,7 +103,7 @@
 
             // act - extract entry
             await using var output = new MemoryStream();
-            lhaArchive.Extract(entry, output);
+            await lhaArchive.ExtractAsync(entry, output);
             
             // assert - output size is equal to entry uncompressed length
             Assert.Equal(entry.UnpackedSize, output.Length);
@@ -118,7 +118,7 @@
             var lhaArchive = new LhaArchive(stream);
 
             // act - read entries
-            var entries = (await lhaArchive.Entries()).ToList();
+            var entries = (await lhaArchive.EntriesAsync()).ToList();
 
             // assert - entry "file1" exist and uses lh6 method
             var entry = entries.FirstOrDefault(x => x.Name == "file1");
@@ -127,7 +127,7 @@
 
             // act - extract entry
             await using var output = new MemoryStream();
-            lhaArchive.Extract(entry, output);
+            await lhaArchive.ExtractAsync(entry, output);
             
             // assert - output size is equal to entry uncompressed length
             Assert.Equal(entry.UnpackedSize, output.Length);
@@ -142,7 +142,7 @@
             var lhaArchive = new LhaArchive(stream);
 
             // act - read entries
-            var entries = (await lhaArchive.Entries()).ToList();
+            var entries = (await lhaArchive.EntriesAsync()).ToList();
 
             // assert - entry "file1" exist and uses lh7 method
             var entry = entries.FirstOrDefault(x => x.Name == "file1");
@@ -151,7 +151,7 @@
 
             // act - extract entry
             await using var output = new MemoryStream();
-            lhaArchive.Extract(entry, output);
+            await lhaArchive.ExtractAsync(entry, output);
             
             // assert - output size is equal to entry uncompressed length
             Assert.Equal(entry.UnpackedSize, output.Length);
@@ -176,7 +176,7 @@
             var lhaArchive = new LhaArchive(stream);
 
             // act - read entries
-            var entries = (await lhaArchive.Entries()).ToList();
+            var entries = (await lhaArchive.EntriesAsync()).ToList();
 
             // assert - entry exist
             Assert.Single(entries);
@@ -186,7 +186,7 @@
 
             // act - extract entry
             await using var output = new MemoryStream();
-            lhaArchive.Extract(entry, output);
+            await lhaArchive.ExtractAsync(entry, output);
             
             // assert - output size is equal to entry uncompressed length
             Assert.Equal(entry.UnpackedSize, output.Length);
@@ -201,7 +201,7 @@
             var lhaArchive = new LhaArchive(stream);
 
             // act - read entries
-            var entries = (await lhaArchive.Entries()).ToList();
+            var entries = (await lhaArchive.EntriesAsync()).ToList();
 
             // assert - entries have been read from lha file
             Assert.NotEmpty(entries);
@@ -222,17 +222,17 @@
             var lhaArchive = new LhaArchive(stream);
 
             // act - read entries
-            var entries = (await lhaArchive.Entries()).ToList();
+            var entries = (await lhaArchive.EntriesAsync()).ToList();
             Assert.NotEmpty(entries);
 
             foreach (var entry in entries)
             {
                 // act - extract entry
                 using var expectedStream = new MemoryStream();
-                lhaArchive.Extract(entry, expectedStream);
+                await lhaArchive.ExtractAsync(entry, expectedStream);
 
                 // act - open entry stream and read with small buffer to read across decode boundaries
-                await using var entryStream = lhaArchive.OpenEntry(entry);
+                await using var entryStream = await lhaArchive.OpenEntryAsync(entry);
                 using var actualStream = new MemoryStream();
                 var buffer = new byte[7];
                 int bytesRead;
@@ -255,19 +255,19 @@
             var path = Path.Combine("TestData", "Lha", "amiga.lha");
             await using var stream = File.OpenRead(path);
             var lhaArchive = new LhaArchive(stream, LhaOptions.AmigaLhaOptions);
-            var entries = (await lhaArchive.Entries()).ToList();
+            var entries = (await lhaArchive.EntriesAsync()).ToList();
             var entry1 = entries.First(x => x.Name == "test1.info");
             var entry2 = entries.First(x => x.Name == @"test1\test2.info");
 
             // arrange - extract expected bytes
             using var expectedStream1 = new MemoryStream();
-            lhaArchive.Extract(entry1, expectedStream1);
+            await lhaArchive.ExtractAsync(entry1, expectedStream1);
             using var expectedStream2 = new MemoryStream();
-            lhaArchive.Extract(entry2, expectedStream2);
+            await lhaArchive.ExtractAsync(entry2, expectedStream2);
 
             // act - open entry streams and read them interleaved
-            await using var entryStream1 = lhaArchive.OpenEntry(entry1);
-            await using var entryStream2 = lhaArchive.OpenEntry(entry2);
+            await using var entryStream1 = await lhaArchive.OpenEntryAsync(entry1);
+            await using var entryStream2 = await lhaArchive.OpenEntryAsync(entry2);
             using var actualStream1 = new MemoryStream();
             using var actualStream2 = new MemoryStream();
             var buffer = new byte[16];

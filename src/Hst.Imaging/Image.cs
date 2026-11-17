@@ -135,15 +135,10 @@
 
         public Pixel GetPixel(int x, int y)
         {
-            if (BitsPerPixel < 8)
+            if (BitsPerPixel <= 8)
             {
-                throw new NotSupportedException();
-            }
-
-            var offset = (Scanline * y) + x;
-            if (BitsPerPixel == 8)
-            {
-                var paletteColor = PixelData[offset];
+                // indexed images use one byte per pixel for palette color index
+                var paletteColor = PixelData[(Scanline * y) + x];
                 var color = Palette.Colors[paletteColor];
                 return new Pixel
                 {
@@ -155,14 +150,15 @@
                 };
             }
 
-            offset *= BitsPerPixel / 8;
+            // pixel data is stored as rgb or rgba, see set pixel
+            var offset = (Scanline * y) + x * (BitsPerPixel / 8);
 
             return new Pixel
             {
-                R = PixelData[offset + 2],
+                R = PixelData[offset],
                 G = PixelData[offset + 1],
-                B = PixelData[offset],
-                A = BitsPerPixel == 32 ? PixelData[offset + 3] : 0,
+                B = PixelData[offset + 2],
+                A = BitsPerPixel == 32 ? PixelData[offset + 3] : 255,
                 PaletteColor = 0
             };
         }
