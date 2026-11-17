@@ -1,0 +1,18 @@
+<?xml version="1.0" ?><!DOCTYPE svg  PUBLIC '-//W3C//DTD SVG 1.1//EN'  'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd'>
+<svg enable-background="new 0 0 512 512" height="512px" id="Layer_1" version="1.1" viewBox="0 0 512 512" width="512px" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <g>
+<rect x="76" y="76" rx="10" ry="10" width="360" height="360" style="fill:#ffffff; stroke-width: 10; stroke:#606060;" />
+
+    <g fill="none" stroke="#606060" stroke-width="15" stroke-linecap="round" stroke-linejoin="round">
+      <!-- braces -->
+      <path d="M176 146 Q141 146 141 181 L141 228 Q141 256 113 256 Q141 256 141 284 L141 331 Q141 366 176 366" />
+      <path d="M336 146 Q371 146 371 181 L371 228 Q371 256 399 256 Q371 256 371 284 L371 331 Q371 366 336 366" />
+
+      <!-- code lines -->
+      <line x1="196" y1="202" x2="290" y2="202" />
+      <line x1="220" y1="240" x2="316" y2="240" />
+      <line x1="220" y1="278" x2="284" y2="278" />
+      <line x1="196" y1="316" x2="250" y2="316" />
+    </g>
+  </g>
+</svg>

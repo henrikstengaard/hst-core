@@ -97,7 +97,10 @@ Behaviour fixes made along the way:
   packages are pushed (needs `contents: write`).
 
 ### 10. Package metadata
-- [ ] Add package icon. Needs an icon image.
+- [x] Add package icon in the same line art style as Hst Imager and Hst Commander: braces around code
+  lines in a white rounded frame with `#606060` strokes. Source `src/icon/hst-core.svg`, PNGs are rendered
+  with `src/icon/make-png.cmd` (ImageMagick). All packages use `hst-core-128x128.png` via
+  `src/Directory.Build.props`.
 - [x] Add release notes: `PackageReleaseNotes` links to the GitHub releases page.
 
 ## Before releasing
