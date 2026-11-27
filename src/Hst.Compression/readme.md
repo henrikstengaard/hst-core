@@ -6,6 +6,7 @@ Features:
 - Read and extract lha archives with methods -lh0-, -lh1-, -lh4- to -lh7-, -lhx-, -lk7-, -lzs-, -lz4-, -lz5-, -pm0-, -pm1- and -pm2-.
 - Read lha archives with header levels 0, 1, 2 and 3.
 - Create lha archives with methods -lh0-, -lh4-, -lh5-, -lh6- and -lh7- and header levels 0, 1 and 2.
+- Create Amiga lha archives with protection bits and comments, and create headers for changed entries to rewrite archives without compressing their data again.
 - Support additional lha methods by adding custom decoders.
 - Read and extract lzx archives, including merged entries.
 - List archive entries with name, date, sizes, attributes and lzx comments.

@@ -243,6 +243,118 @@ namespace Hst.Compression.Tests.Lha
                 new LhaWriter(archiveStream, new LhaWriterOptions { Method = method }));
         }
 
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        [InlineData(2)]
+        public async Task WhenWriteAmigaEntriesAndReadThenProtectionBitsAndCommentsAreEqual(int headerLevel)
+        {
+            // arrange - data to add
+            var data = CreateText(5000);
+            var options = LhaWriterOptions.Amiga;
+            options.HeaderLevel = headerLevel;
+
+            // act - write amiga lha archive with protection bits and comments, also containing path separators
+            using var archiveStream = new MemoryStream();
+            using (var lhaWriter = new LhaWriter(archiveStream, options, true))
+            {
+                lhaWriter.AddDirectory("dir", new LhaEntryOptions
+                    { LastModified = LastModified, Attributes = 0x10, Comment = "Dir comment" });
+                lhaWriter.AddFile(@"dir\file.txt", new MemoryStream(data), new LhaEntryOptions
+                    { LastModified = LastModified, Attributes = 0x42, Comment = "Comment with / and \\ äö" });
+                lhaWriter.AddFile("plain.txt", new MemoryStream(data), new LhaEntryOptions
+                    { LastModified = LastModified });
+            }
+
+            // act - read lha archive
+            archiveStream.Position = 0;
+            var lhaArchive = new LhaArchive(archiveStream, LhaOptions.AmigaLhaOptions, true);
+            var entries = (await lhaArchive.EntriesAsync()).ToList();
+
+            // assert - entries are read with protection bits, comments and amiga os type
+            Assert.Equal(3, entries.Count);
+            var expectedOsType = headerLevel == 0 ? LhaOsType.Generic : LhaOsType.Amiga;
+            Assert.Equal("dir\\\0Dir comment", entries[0].Name);
+            Assert.Equal(0x10, entries[0].Attributes & 0xff);
+            Assert.Equal(expectedOsType, entries[0].OsType);
+            Assert.Equal("dir\\file.txt\0Comment with / and \\ äö", entries[1].Name);
+            Assert.Equal(0x42, entries[1].Attributes & 0xff);
+            Assert.Equal(expectedOsType, entries[1].OsType);
+            Assert.Equal("plain.txt", entries[2].Name);
+            Assert.Equal(0, entries[2].Attributes & 0xff);
+
+            // assert - dates are equal
+            foreach (var entry in entries)
+            {
+                Assert.Equal(LastModified, entry.Date);
+            }
+
+            // assert - data is equal
+            using var output = new MemoryStream();
+            await lhaArchive.ExtractAsync(entries[1], output);
+            Assert.Equal(data, output.ToArray());
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        [InlineData(2)]
+        public async Task WhenCreateHeaderForChangedEntryWithPackedDataThenEntryIsReadAndExtracted(int headerLevel)
+        {
+            // arrange - write lha archive with one file
+            var data = CreateText(20000);
+            var options = LhaWriterOptions.Amiga;
+            options.HeaderLevel = headerLevel;
+            using var archiveStream = new MemoryStream();
+            using (var lhaWriter = new LhaWriter(archiveStream, options, true))
+            {
+                lhaWriter.AddFile("file.txt", new MemoryStream(data), new LhaEntryOptions
+                    { LastModified = LastModified });
+            }
+
+            archiveStream.Position = 0;
+            var entry = Assert.Single(await new LhaArchive(archiveStream, LhaOptions.AmigaLhaOptions, true)
+                .EntriesAsync());
+            var packedData = new byte[entry.PackedSize];
+            archiveStream.Position = entry.HeaderOffset + entry.HeaderSize;
+            Assert.Equal(packedData.Length, archiveStream.Read(packedData, 0, packedData.Length));
+
+            // act - create header with changed name, date, protection bits and comment followed by packed data
+            var changedDate = new DateTime(2025, 1, 2, 3, 4, 6, DateTimeKind.Utc);
+            entry.Name = "dir\\renamed.txt\0New comment";
+            entry.Date = changedDate;
+            entry.Attributes = 0x08;
+            using var changedStream = new MemoryStream();
+            using (var lhaWriter = new LhaWriter(changedStream, options, true))
+            {
+                var header = lhaWriter.CreateHeader(entry);
+                changedStream.Write(header, 0, header.Length);
+                changedStream.Write(packedData, 0, packedData.Length);
+                lhaWriter.Finish();
+            }
+
+            // assert - changed entry is read and extracted with valid crc
+            changedStream.Position = 0;
+            var lhaArchive = new LhaArchive(changedStream, LhaOptions.AmigaLhaOptions, true);
+            var changedEntry = Assert.Single(await lhaArchive.EntriesAsync());
+            Assert.Equal("dir\\renamed.txt\0New comment", changedEntry.Name);
+            Assert.Equal(changedDate, changedEntry.Date);
+            Assert.Equal(0x08, changedEntry.Attributes & 0xff);
+            Assert.Equal(entry.PackedSize, changedEntry.PackedSize);
+            using var output = new MemoryStream();
+            await lhaArchive.ExtractAsync(changedEntry, output);
+            Assert.Equal(data, output.ToArray());
+        }
+
+        [Theory]
+        [InlineData(new byte[0])]
+        [InlineData(new byte[] { 0 })]
+        public async Task WhenReadEmptyArchiveThenNoEntriesAreRead(byte[] archive)
+        {
+            var lhaArchive = new LhaArchive(new MemoryStream(archive));
+            Assert.Empty(await lhaArchive.EntriesAsync());
+        }
+
         private static byte[] CreateText(int size)
         {
             var words = new[]

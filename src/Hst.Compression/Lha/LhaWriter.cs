@@ -58,7 +58,7 @@ namespace Hst.Compression.Lha
 
             ValidateMethod(this.options.Method);
 
-            headerWriter = new HeaderWriter(this.options.Encoding, !this.options.GenericFormat);
+            headerWriter = new HeaderWriter(this.options.Encoding);
         }
 
         private static void ValidateMethod(string method)
@@ -76,19 +76,61 @@ namespace Hst.Compression.Lha
             }
         }
 
-        private LhaEntry CreateHeader(string name, DateTime lastModified)
+        private LhaEntry CreateHeader(string name, LhaEntryOptions entryOptions, bool isDirectory)
         {
+            var osType = options.EffectiveOsType;
+            name = name.Replace('/', '\\');
+            if (isDirectory && !name.EndsWith("\\", StringComparison.Ordinal))
+            {
+                name += "\\";
+            }
+
+            if (!string.IsNullOrEmpty(entryOptions.Comment))
+            {
+                name += "\0" + entryOptions.Comment;
+            }
+
+            int defaultAttributes;
+            if (osType == LhaOsType.Amiga)
+            {
+                defaultAttributes = 0;
+            }
+            else
+            {
+                defaultAttributes = isDirectory ? DIRECTORY_ATTRIBUTE : FILE_ATTRIBUTE;
+            }
+
             return new LhaEntry
             {
-                Method = LhaMethod.Lh0,
-                Attributes = FILE_ATTRIBUTE,
+                Method = isDirectory ? LhaMethod.Lhd : LhaMethod.Lh0,
+                Attributes = entryOptions.Attributes ?? defaultAttributes,
                 HeaderLevel = options.HeaderLevel,
-                Name = name.Replace('/', '\\'),
+                Name = name,
                 HasCrc = true,
-                OsType = options.GenericFormat ? LhaOsType.Generic : LhaOsType.Unix,
-                Date = lastModified,
-                UnixMode = FILE_MODE
+                OsType = osType,
+                Date = entryOptions.LastModified ?? DateTime.Now,
+                UnixMode = isDirectory ? DIRECTORY_MODE : FILE_MODE
             };
+        }
+
+        /// <summary>
+        /// Create bytes of a header for an entry, e.g. to write an entry with a changed name, date, attributes or
+        /// comment followed by its unchanged packed data. The encoding of the writer options is used for the name;
+        /// header level, method, sizes, crc, operating system type and unix fields are used from the entry. Unix
+        /// extended headers are written for entries with operating system type <see cref="LhaOsType.Unix" />. The
+        /// packed size of level 1 headers includes the size of their extended headers like when written. For level 2
+        /// headers <see cref="LhaEntry.HeaderCrc" /> is updated.
+        /// </summary>
+        /// <param name="entry">Entry to create header for, e.g. read with <see cref="LhaArchive" />.</param>
+        /// <returns>Bytes of header.</returns>
+        public byte[] CreateHeader(LhaEntry entry)
+        {
+            if (entry == null)
+            {
+                throw new ArgumentNullException(nameof(entry));
+            }
+
+            return headerWriter.Write(entry);
         }
 
         private void EnsureWritable()
@@ -115,7 +157,16 @@ namespace Hst.Compression.Lha
         /// <param name="name">Name of directory. Path separators '/' and '\' are supported.</param>
         /// <param name="lastModified">Last modified date of directory. Default is now.</param>
         /// <returns>Header of entry added.</returns>
-        public LhaEntry AddDirectory(string name, DateTime? lastModified = null)
+        public LhaEntry AddDirectory(string name, DateTime? lastModified = null) =>
+            AddDirectory(name, new LhaEntryOptions { LastModified = lastModified });
+
+        /// <summary>
+        /// Add directory entry to lha archive.
+        /// </summary>
+        /// <param name="name">Name of directory. Path separators '/' and '\' are supported.</param>
+        /// <param name="entryOptions">Options for directory: last modified date, attributes and comment.</param>
+        /// <returns>Header of entry added.</returns>
+        public LhaEntry AddDirectory(string name, LhaEntryOptions entryOptions)
         {
             EnsureWritable();
 
@@ -124,15 +175,12 @@ namespace Hst.Compression.Lha
                 throw new ArgumentNullException(nameof(name));
             }
 
-            var header = CreateHeader(name, lastModified ?? DateTime.Now);
-            header.Method = LhaMethod.Lhd;
-            header.Attributes = DIRECTORY_ATTRIBUTE;
-            header.UnixMode = DIRECTORY_MODE;
-            if (!header.Name.EndsWith("\\", StringComparison.Ordinal))
+            if (entryOptions == null)
             {
-                header.Name += "\\";
+                throw new ArgumentNullException(nameof(entryOptions));
             }
 
+            var header = CreateHeader(name, entryOptions, true);
             header.HeaderOffset = stream.CanSeek ? stream.Position : 0;
             WriteHeader(header, stream);
 
@@ -149,7 +197,19 @@ namespace Hst.Compression.Lha
         /// <param name="lastModified">Last modified date of file. Default is now.</param>
         /// <param name="method">Compression method to use, overrides method from options.</param>
         /// <returns>Header of entry added.</returns>
-        public LhaEntry AddFile(string name, Stream data, DateTime? lastModified = null, string method = null)
+        public LhaEntry AddFile(string name, Stream data, DateTime? lastModified = null, string method = null) =>
+            AddFile(name, data, new LhaEntryOptions { LastModified = lastModified, Method = method });
+
+        /// <summary>
+        /// Add file entry to lha archive. Data is read from current position to end of data stream and compressed
+        /// using method from entry options or writer options. If compressed data is not smaller than original data,
+        /// data is stored using method -lh0- instead.
+        /// </summary>
+        /// <param name="name">Name of file. Path separators '/' and '\' are supported.</param>
+        /// <param name="data">Stream with data of file.</param>
+        /// <param name="entryOptions">Options for file: last modified date, method, attributes and comment.</param>
+        /// <returns>Header of entry added.</returns>
+        public LhaEntry AddFile(string name, Stream data, LhaEntryOptions entryOptions)
         {
             EnsureWritable();
 
@@ -163,7 +223,12 @@ namespace Hst.Compression.Lha
                 throw new ArgumentNullException(nameof(data));
             }
 
-            method = method ?? options.Method;
+            if (entryOptions == null)
+            {
+                throw new ArgumentNullException(nameof(entryOptions));
+            }
+
+            var method = entryOptions.Method ?? options.Method;
             ValidateMethod(method);
 
             // data stream must be seekable to store data, if it can't be compressed
@@ -184,7 +249,7 @@ namespace Hst.Compression.Lha
                     throw new ArgumentException("Files larger than 4GB are not supported", nameof(data));
                 }
 
-                var header = CreateHeader(name, lastModified ?? DateTime.Now);
+                var header = CreateHeader(name, entryOptions, false);
                 header.UnpackedSize = size;
                 header.HeaderOffset = stream.CanSeek ? stream.Position : 0;
 

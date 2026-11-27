@@ -319,7 +319,24 @@ namespace Hst.Compression.Lha
                 return;
             }
 
-            SetPath(fields, encoding.GetString(fields.Data, offset, length).Replace('\\', '/'));
+            // Amiga lha stores a comment after a zero character, which can contain path separators
+            var name = encoding.GetString(fields.Data, offset, length);
+            var commentIndex = name.IndexOf('\0');
+            var comment = commentIndex >= 0 ? name.Substring(commentIndex) : string.Empty;
+            SetPath(fields, (commentIndex >= 0 ? name.Substring(0, commentIndex) : name).Replace('\\', '/'));
+            fields.FileName = string.Concat(fields.FileName, comment);
+        }
+
+        /// <summary>
+        /// Replace path separators '/' in a file name, which can't contain them, except in a comment after a zero
+        /// character stored by Amiga lha.
+        /// </summary>
+        private static string ReplaceSeparatorsBeforeComment(string fileName)
+        {
+            var commentIndex = fileName.IndexOf('\0');
+            return commentIndex >= 0
+                ? fileName.Substring(0, commentIndex).Replace('/', '_') + fileName.Substring(commentIndex)
+                : fileName.Replace('/', '_');
         }
 
         /// <summary>
@@ -420,7 +437,7 @@ namespace Hst.Compression.Lha
                     break;
                 case EXT_FILENAME when length >= 1:
                     // file name can't contain path separators
-                    fields.FileName = encoding.GetString(data, offset, length).Replace('/', '_');
+                    fields.FileName = ReplaceSeparatorsBeforeComment(encoding.GetString(data, offset, length));
                     break;
                 case EXT_PATH when length >= 1:
                     fields.Directory = ReadDirectory(data, offset, length);
@@ -618,7 +635,8 @@ namespace Hst.Compression.Lha
                 HeaderLevel = fields.Level,
                 HeaderCrc = (short)fields.HeaderCrc,
                 Method = fields.Method,
-                Name = string.Concat(fields.Directory, fields.FileName).Replace('/', '\\'),
+                // file name has no path separators, except in an Amiga comment after a zero character
+                Name = string.Concat(fields.Directory?.Replace('/', '\\'), fields.FileName),
                 LinkTarget = fields.LinkTarget?.Replace('/', '\\'),
                 PackedSize = fields.PackedSize,
                 UnpackedSize = fields.UnpackedSize,
