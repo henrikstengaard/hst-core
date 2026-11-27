@@ -93,6 +93,25 @@ lhaWriter.AddFile("dir/test.txt", data, File.GetLastWriteTime("test.txt"));
 
 Data that can't be compressed to a smaller size is stored using method `-lh0-`. The end of archive marker is written, when the lha writer is disposed or `Finish()` is called.
 
+Example of creating an Amiga lha archive with Amiga protection bits (as stored on disk) and comments like Amiga LhA. `LhaWriterOptions.Amiga` writes operating system type Amiga, ISO-8859-1 encoded names and no unix extended headers; comments are stored after a zero character in the name:
+
+```
+await using var stream = File.Create("amiga.lha");
+using var lhaWriter = new LhaWriter(stream, LhaWriterOptions.Amiga);
+
+lhaWriter.AddDirectory("dir", new LhaEntryOptions { Comment = "Directory comment" });
+
+await using var data = File.OpenRead("test.txt");
+lhaWriter.AddFile("dir/test.txt", data, new LhaEntryOptions
+{
+    LastModified = File.GetLastWriteTime("test.txt"),
+    Attributes = 0x02, // delete protected
+    Comment = "File comment"
+});
+```
+
+`LhaWriter.CreateHeader(entry)` creates the bytes of a header for an entry read with `LhaArchive`, e.g. with a changed name, date, attributes or comment, which can be written followed by the entry's unchanged packed data to rewrite an archive without compressing data again.
+
 ## Public api
 
 | Type                 | Description                                                                     |
@@ -104,7 +123,8 @@ Data that can't be compressed to a smaller size is stored using method `-lh0-`. 
 | `LhaOptions`         | Encoding of names and additional decoders.                                      |
 | `ILhaDecoder`        | Interface for additional decoders created by `LhaDecoderFactory`.               |
 | `LhaWriter`          | Create lha archives by adding directories and files.                            |
-| `LhaWriterOptions`   | Encoding, header level, method and generic format used for writing.            |
+| `LhaWriterOptions`   | Encoding, header level, method, generic format and os type used for writing.   |
+| `LhaEntryOptions`    | Date, method, attributes and comment of an entry added with `LhaWriter`.        |
 | `LhaMethod`          | Compression method identifiers, e.g. `LhaMethod.Lh5` for `-lh5-`.               |
 | `LhaOsType`          | Operating system types stored in headers, e.g. `LhaOsType.Amiga`.               |
 | `LhaUnixMode`        | Unix file type and permission bits of `LhaEntry.UnixMode`.                      |

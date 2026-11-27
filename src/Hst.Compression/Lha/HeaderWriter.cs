@@ -39,18 +39,22 @@ namespace Hst.Compression.Lha
         private static readonly DateTime UnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         private readonly Encoding encoding;
-        private readonly bool unixExtensions;
 
         /// <summary>
-        /// Create header writer.
+        /// Create header writer. Unix timestamp, permissions, uid and gid are written for headers with operating
+        /// system type unix. Headers with operating system type Amiga store attributes (Amiga protection bits) in the
+        /// attribute field of level 1 and 2 headers too, like Amiga LhA.
         /// </summary>
         /// <param name="encoding">Encoding of names.</param>
-        /// <param name="unixExtensions">Write unix timestamp, permissions, uid and gid.</param>
-        public HeaderWriter(Encoding encoding, bool unixExtensions)
+        public HeaderWriter(Encoding encoding)
         {
             this.encoding = encoding;
-            this.unixExtensions = unixExtensions;
         }
+
+        private static bool HasUnixExtensions(LhaEntry header) => header.OsType == LhaOsType.Unix;
+
+        private static byte BaseAttribute(LhaEntry header) =>
+            header.OsType == LhaOsType.Amiga ? (byte)header.Attributes : RESERVED_ATTRIBUTE;
 
         /// <summary>
         /// Create bytes of header.
@@ -113,11 +117,14 @@ namespace Hst.Compression.Lha
         }
 
         /// <summary>
-        /// Split name into directory path including last separator and filename.
+        /// Split name into directory path including last separator and filename. A comment after a zero character
+        /// stays in the filename, also when it contains separators.
         /// </summary>
         private static void SplitName(string name, out string path, out string filename)
         {
-            var separator = name.LastIndexOf('\\');
+            var commentIndex = name.IndexOf('\0');
+            var pathAndName = commentIndex >= 0 ? name.Substring(0, commentIndex) : name;
+            var separator = pathAndName.LastIndexOf('\\');
             path = separator >= 0 ? name.Substring(0, separator + 1) : string.Empty;
             filename = separator >= 0 ? name.Substring(separator + 1) : name;
         }
@@ -165,6 +172,7 @@ namespace Hst.Compression.Lha
         private byte[] WriteLevel0(LhaEntry header)
         {
             var name = encoding.GetBytes(header.Name);
+            var unixExtensions = HasUnixExtensions(header);
             var extendedAreaSize = unixExtensions ? 12 : 0;
             var headerSize = 22 + name.Length + extendedAreaSize;
 
@@ -222,7 +230,7 @@ namespace Hst.Compression.Lha
                 extendedHeaders.Add((EXT_MSDOS_ATTRIBUTE, attribute));
             }
 
-            if (unixExtensions)
+            if (HasUnixExtensions(header))
             {
                 var permission = new byte[2];
                 WriteUInt16(permission, 0, header.UnixMode);
@@ -294,7 +302,7 @@ namespace Hst.Compression.Lha
             // packed size includes extended headers for compatibility with level 0
             WriteCommonFields(buffer, header, header.PackedSize + extendedHeadersSize,
                 ToDosTime(header.Date));
-            buffer[19] = RESERVED_ATTRIBUTE;
+            buffer[19] = BaseAttribute(header);
             buffer[21] = (byte)baseName.Length;
             Array.Copy(baseName, 0, buffer, 22, baseName.Length);
 
@@ -333,7 +341,7 @@ namespace Hst.Compression.Lha
             var buffer = new byte[headerSize];
             WriteUInt16(buffer, 0, headerSize);
             WriteCommonFields(buffer, header, header.PackedSize, ToUnixTime(header.Date));
-            buffer[19] = RESERVED_ATTRIBUTE;
+            buffer[19] = BaseAttribute(header);
             WriteUInt16(buffer, 21, (ushort)header.Crc);
             buffer[23] = (byte)header.OsType;
 
